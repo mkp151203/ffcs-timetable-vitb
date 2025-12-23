@@ -8,6 +8,13 @@
     ],
     "routes": [
         {
+            "src": "/sitemap.xml",
+            "headers": {
+                "Content-Type": "application/xml"
+            },
+            "dest": "app.py"
+        },
+        {
             "src": "/(.*)",
             "dest": "app.py"
         }
