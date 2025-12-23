@@ -17,17 +17,17 @@ def sitemap_xml():
         'priority': '1.0'
     })
     
-    # Auth pages
-    pages.append({
-        'loc': url_for('auth.login', _external=True),
-        'lastmod': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
-        'changefreq': 'monthly',
-        'priority': '0.8'
-    })
+    # Auth pages - Removed per best practices (noindex for login)
+    # pages.append({
+    #     'loc': url_for('auth.login', _external=True),
+    #     'lastmod': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+    #     'changefreq': 'monthly',
+    #     'priority': '0.8'
+    # })
     
     # Render XML
     sitemap_xml_content = render_template('sitemap.xml', pages=pages)
-    return Response(sitemap_xml_content, mimetype='application/xml')
+    return Response(sitemap_xml_content.strip(), mimetype='application/xml')
 
 @sitemap_bp.route('/sitemap')
 def sitemap_html():
