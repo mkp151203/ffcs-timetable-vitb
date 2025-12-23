@@ -3,8 +3,14 @@ from models import db
 from routes import main_bp, courses_bp, registration_bp, upload_bp, auth_bp, sitemap_bp
 from routes.auth import init_oauth
 from flask_compress import Compress
+from werkzeug.middleware.proxy_fix import ProxyFix
+import os
 
 app = Flask(__name__)
+# Vercel sits behind a proxy, so we need to trust the headers (X-Forwarded-Proto, etc.)
+# x_proto=1 (HTTPS), x_host=1, x_port=1, x_prefix=1
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 Compress(app)
 app.config.from_object('config')
 
