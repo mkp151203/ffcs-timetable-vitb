@@ -365,6 +365,13 @@ body {
     font-size: 0.8rem;
 }
 
+.btn-added {
+    padding-left: 4px;
+    padding-right: 4px;
+    gap: 4px;
+    width: auto !important;
+}
+
 /* Inline Registered Courses Panel (below timetable) */
 .registered-panel-inline {
     margin-top: var(--spacing-lg);
@@ -947,6 +954,13 @@ kbd {
 .btn-google-login i {
     /* Google Red */
     font-size: 1.1rem;
+}
+
+
+/* Highlight registered courses in the list */
+.registered-row {
+    background-color: rgba(144, 238, 144, 0.15) !important;
+    /* Very Light Green Tint */
 }
 
 /* Print styles removed in favor of PDF Snapshot */

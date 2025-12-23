@@ -29,6 +29,10 @@ else:
 
 print(f"DEBUG: Using Database URI: {SQLALCHEMY_DATABASE_URI}")
 SQLALCHEMY_TRACK_MODIFICATIONS = False
+SQLALCHEMY_ENGINE_OPTIONS = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', 'placeholder-client-id')

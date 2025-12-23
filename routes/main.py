@@ -12,12 +12,12 @@ COURSE_COLORS = [
     '#FFB6C1',  # Light pink
     '#DDA0DD',  # Plum
     '#F0E68C',  # Khaki
-    '#98FB98',  # Pale green
-    '#ADD8E6',  # Light blue
+    '#FF7F50',  # Coral (Replaced Pale Green)
+    '#00CED1',  # Dark Turquoise (Replaced Light Blue)
     '#FFE4B5',  # Moccasin
     '#E6E6FA',  # Lavender
     '#FFDAB9',  # Peach puff
-    '#B0E0E6',  # Powder blue
+    '#DA70D6',  # Orchid (Replaced Powder Blue)
     '#FFA07A',  # Light salmon
 ]
 

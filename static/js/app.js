@@ -145,7 +145,7 @@ function showFacultyModal(course, slots) {
 }
 
 async function checkClashesForSlots(slots) {
-    for (const slot of slots) {
+    const checkPromises = slots.map(async (slot) => {
         try {
             const response = await fetch('/api/registration/check-clash', {
                 method: 'POST',
@@ -162,7 +162,9 @@ async function checkClashesForSlots(slots) {
         } catch (error) {
             console.error('Error checking clash:', error);
         }
-    }
+    });
+
+    await Promise.all(checkPromises);
 }
 
 function selectSlot(slotId) {
@@ -520,10 +522,21 @@ function viewAllCourses() {
     content.innerHTML = '<div class="loading-spinner"></div>';
     modal.classList.add('active');
 
-    fetch('/api/courses/all')
-        .then(response => response.json())
-        .then(data => {
-            if (data.courses.length === 0) {
+    Promise.all([
+        fetch('/api/courses/all').then(r => r.json()),
+        fetch('/api/registration/').then(r => r.json())
+    ])
+        .then(([coursesData, regData]) => {
+            const registeredCourseIds = new Set();
+            if (regData.registrations) {
+                regData.registrations.forEach(reg => {
+                    if (reg.slot && reg.slot.course) {
+                        registeredCourseIds.add(reg.slot.course.id);
+                    }
+                });
+            }
+
+            if (coursesData.courses.length === 0) {
                 content.innerHTML = `
                     <div class="no-results">
                         <i class="fas fa-inbox"></i>
@@ -534,7 +547,7 @@ function viewAllCourses() {
             }
 
             content.innerHTML = `
-                <p style="margin-bottom: 16px;">Total courses: <strong>${data.courses.length}</strong></p>
+                <p style="margin-bottom: 16px;">Total courses: <strong>${coursesData.courses.length}</strong></p>
                 <table class="registered-table">
                     <thead>
                         <tr>
@@ -546,22 +559,32 @@ function viewAllCourses() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.courses.map(course => `
-                            <tr>
+                        ${coursesData.courses.map(course => {
+                const isRegistered = registeredCourseIds.has(course.id);
+                const rowClass = isRegistered ? 'registered-row' : '';
+                return `
+                            <tr class="${rowClass}">
                                 <td><strong>${course.code}</strong></td>
                                 <td>${course.name}</td>
                                 <td>${course.ltpjc}</td>
                                 <td>${course.course_type || '-'}</td>
                                 <td>
-                                    <button class="btn btn-primary btn-sm" onclick="selectCourse('${course.id}'); closeAllCoursesModal();">
-                                        <i class="fas fa-plus"></i> Add
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteCourse('${course.id}', '${course.code}');" style="margin-left: 5px;">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div style="display: flex; gap: 5px; align-items: center;">
+                                        ${isRegistered ?
+                        `<button class="btn btn-success btn-sm btn-added" disabled style="opacity: 0.7; cursor: default;">
+                                                <i class="fas fa-check"></i> Added
+                                            </button>` :
+                        `<button class="btn btn-primary btn-sm" onclick="selectCourse('${course.id}'); closeAllCoursesModal();">
+                                                <i class="fas fa-plus"></i> Add
+                                            </button>`
+                    }
+                                        <button class="btn btn-danger btn-sm" onclick="deleteCourse('${course.id}', '${course.code}');">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
-                        `).join('')}
+                        `}).join('')}
                     </tbody>
                 </table>
             `;
@@ -715,32 +738,26 @@ async function importHtmlFiles() {
     importBtn.disabled = true;
     statusDiv.innerHTML = '<div class="loading-spinner"></div> Importing data...';
 
-    const results = [];
-    let successCount = 0;
-
-    for (const file of selectedFiles) {
+    const uploadPromises = selectedFiles.map(async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-
-        try {
-            const response = await fetch('/api/upload/import', {
-                method: 'POST',
-                body: formData
-            });
-
+        return fetch('/api/upload/import', {
+            method: 'POST',
+            body: formData
+        }).then(async (response) => {
             const data = await response.json();
-
             if (response.ok) {
-                results.push(`<div class="import-success-item"><i class="fas fa-check"></i> ${data.message}</div>`);
-                successCount++;
+                return `<div class="import-success-item"><i class="fas fa-check"></i> ${data.message}</div>`;
             } else {
-                results.push(`<div class="import-error-item"><i class="fas fa-times"></i> ${file.name}: ${data.error}</div>`);
+                return `<div class="import-error-item"><i class="fas fa-times"></i> ${file.name}: ${data.error}</div>`;
             }
+        }).catch(error => {
+            return `<div class="import-error-item"><i class="fas fa-times"></i> ${file.name}: Error importing</div>`;
+        });
+    });
 
-        } catch (error) {
-            results.push(`<div class="import-error-item"><i class="fas fa-times"></i> ${file.name}: Error importing</div>`);
-        }
-    }
+    const results = await Promise.all(uploadPromises);
+    const successCount = results.filter(r => r.includes('import-success-item')).length;
 
     statusDiv.innerHTML = `
         <div class="import-results">

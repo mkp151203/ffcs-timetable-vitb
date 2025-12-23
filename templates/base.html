@@ -5,7 +5,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>{% block title %}FFCS Timetable Builder{% endblock %}</title>
+
+    <!-- Google Analytics (GA4) -->
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-F03ZLSX9P7"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-F03ZLSX9P7');
+    </script>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description"
+        content="VIT Bhopal FFCS Timetable Maker - The ultimate tool for planning your Fully Flexible Credit System (FFCS) schedule. Clash detection, course planning, and easy timetable generation for VIT Bhopal students.">
+    <meta name="keywords"
+        content="ffcs vit bhopal, vit bhopal timetable maker, timtable vit bhopal, vit ffcs, vit timetable, fully flexible credit system, vit bhopal course planner, vit slot booking, vit registration helper, mehul k patel, vitb ffcs, vitb timetable, vit bhopal slot selection, vit bhopal course registration, vtop vit bhopal, vitb vtop, vit bhopal mock schedule, vit bhopal academic calendar, vitb ffcs planner, vit bhopal faculty list, vit bhopal credit calculator">
+    <meta name="author" content="Mehul K. Patel">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="VIT Bhopal FFCS Timetable Maker">
+    <meta property="og:description"
+        content="Plan your VIT Bhopal semester timetable easily with the FFCS Timetable Maker. Avoid slot clashes and optimize your schedule.">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="VIT Bhopal FFCS Timetable Maker">
+    <meta property="twitter:description"
+        content="Plan your VIT Bhopal semester timetable easily with the FFCS Timetable Maker.">
+
+    <title>{% block title %}VIT Bhopal FFCS Timetable Maker{% endblock %}</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.ico') }}">

@@ -2,8 +2,10 @@ from flask import Flask
 from models import db
 from routes import main_bp, courses_bp, registration_bp, upload_bp, auth_bp
 from routes.auth import init_oauth
+from flask_compress import Compress
 
 app = Flask(__name__)
+Compress(app)
 app.config.from_object('config')
 
 # Initialize database
@@ -23,12 +25,15 @@ app.register_blueprint(upload_bp, url_prefix='/api/upload')
 with app.app_context():
     db.create_all()
 
+from flask import request
+
 @app.after_request
 def add_header(response):
-    """Add headers to prevent caching."""
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+    """Add headers to prevent caching for API/HTML, but allow for Static."""
+    if 'static' not in request.url:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     return response
 
 # Background Cleanup Task
