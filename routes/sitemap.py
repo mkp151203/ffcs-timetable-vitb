@@ -11,7 +11,7 @@ def sitemap_xml():
     # Static pages
     # 'main.index' is the home page
     pages.append({
-        'loc': url_for('main.index', _external=True),
+        'loc': url_for('main.index', _external=True).rstrip('/'),
         'lastmod': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
         'changefreq': 'daily',
         'priority': '1.0'
