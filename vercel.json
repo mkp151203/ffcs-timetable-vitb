@@ -8,19 +8,15 @@
     ],
     "routes": [
         {
+            "src": "/sitemap.xml",
+            "headers": {
+                "Content-Type": "application/xml"
+            },
+            "dest": "app.py"
+        },
+        {
             "src": "/(.*)",
             "dest": "app.py"
-        }
-    ],
-    "headers": [
-        {
-            "source": "/sitemap.xml",
-            "headers": [
-                {
-                    "key": "Content-Type",
-                    "value": "application/xml"
-                }
-            ]
         }
     ],
     "crons": [
