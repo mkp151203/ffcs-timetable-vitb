@@ -93,6 +93,15 @@
             </ul>
         </div>
 
+        <!-- Auto Generate -->
+        <div class="auto-generate-panel">
+            <h3><i class="fas fa-magic"></i> Auto Generate</h3>
+            <p class="upload-hint">Generate optimal clash-free timetable</p>
+            <button type="button" class="btn btn-primary" onclick="openGenerateModal()">
+                <i class="fas fa-wand-magic-sparkles"></i> Generate Timetable
+            </button>
+        </div>
+
         <!-- HTML Upload -->
         <div class="upload-panel">
             <h3>
@@ -160,6 +169,9 @@
 
 <!-- Faculty Selection Modal -->
 {% include "components/faculty_modal.html" %}
+
+<!-- Auto-Generate Timetable Modal -->
+{% include "components/generate_modal.html" %}
 
 <!-- Registered Courses Modal -->
 <div id="registeredModal" class="modal">

@@ -1,0 +1,789 @@
+<!-- Auto-Generate Timetable Modal -->
+<div id="generateModal" class="modal">
+    <div class="modal-content modal-xl">
+        <div class="modal-header">
+            <h2><i class="fas fa-magic"></i> Auto-Generate Timetable</h2>
+            <button class="modal-close" onclick="closeGenerateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Step Progress -->
+            <div class="generate-steps">
+                <div class="step active" data-step="1">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Select Courses</span>
+                </div>
+                <div class="step" data-step="2">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Preferences</span>
+                </div>
+                <div class="step" data-step="3">
+                    <span class="step-number">3</span>
+                    <span class="step-label">Results</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Course Selection -->
+            <div id="generateStep1" class="generate-step-content active">
+                <h3>Select Courses to Include</h3>
+                <div class="course-selection-header">
+                    <label class="select-all-label">
+                        <input type="checkbox" id="selectAllCoursesGenerate" onchange="toggleAllCoursesGenerate()">
+                        Select All
+                    </label>
+                    <span id="selectedCreditsDisplay" class="credits-display">0 credits selected</span>
+                </div>
+                <div id="courseSelectionList" class="course-selection-list">
+                    <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading courses...</p>
+                </div>
+
+                <!-- Count Display (Moved to Step 1) -->
+                <div class="count-display-section" style="margin-top: 15px;">
+                    <div id="timetableCountBox" class="count-box">
+                        <i class="fas fa-calculator"></i>
+                        <span id="timetableCountText">Select courses and click "Count"</span>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="countTimetables()"
+                        title="Count distinct time patterns (ignoring teacher differences)">
+                        <i class="fas fa-search"></i> Count Valid Patterns
+                    </button>
+                    <input type="hidden" id="countMode" value="distinct">
+                </div>
+            </div>
+
+            <!-- Step 2: Preferences -->
+            <div id="generateStep2" class="generate-step-content">
+                <h3><i class="fas fa-sliders-h"></i> Set Generation Preferences</h3>
+
+                <!-- Generation Mode Tabs -->
+                <div class="pref-tabs">
+                    <div class="pref-tab active" data-tab="custom" onclick="switchGenerateTab('custom')">
+                        <i class="fas fa-sliders-h"></i> Custom
+                    </div>
+                    <div class="pref-tab" data-tab="random" onclick="switchGenerateTab('random')">
+                        <i class="fas fa-dice"></i> Random
+                    </div>
+                </div>
+
+                <!-- 1. Custom Mode Content (Time + Teacher) -->
+                <div id="prefTabContent-custom" class="pref-tab-content active">
+                    <!-- Section A: Time Preferences -->
+                    <h5 class="section-title"><i class="fas fa-clock"></i> Time Preferences</h5>
+                    <p class="tab-desc">Prioritize certain times of day for your classes.</p>
+
+                    <div class="time-mode-options mb-4">
+                        <label class="time-mode-option">
+                            <input type="radio" name="timeMode" value="morning">
+                            <div class="mode-card">
+                                <div class="mode-icon"><i class="fas fa-sun"></i></div>
+                                <div class="mode-label">Morning</div>
+                                <div class="mode-sub">Start 08:30</div>
+                            </div>
+                        </label>
+
+                        <label class="time-mode-option">
+                            <input type="radio" name="timeMode" value="middle">
+                            <div class="mode-card">
+                                <div class="mode-icon"><i class="fas fa-cloud-sun"></i></div>
+                                <div class="mode-label">Middle</div>
+                                <div class="mode-sub">10:00 - 14:00</div>
+                            </div>
+                        </label>
+
+                        <label class="time-mode-option">
+                            <input type="radio" name="timeMode" value="afternoon">
+                            <div class="mode-card">
+                                <div class="mode-icon"><i class="fas fa-moon"></i></div>
+                                <div class="mode-label">Afternoon</div>
+                                <div class="mode-sub">End 19:30</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="preference-toggle-group mb-5">
+                        <label class="preference-toggle">
+                            <input type="checkbox" id="prefAvoidEarlyMorning">
+                            <span class="toggle-slider"></span>
+                            Avoid 8:30 AM Classes (Period 1)
+                        </label>
+                        <label class="preference-toggle">
+                            <input type="checkbox" id="prefAvoidLateEvening">
+                            <span class="toggle-slider"></span>
+                            Avoid 6:00 PM Classes (Period 7)
+                        </label>
+                    </div>
+
+                    <hr>
+
+                    <!-- Section B: Teacher Preferences -->
+                    <h5 class="section-title mt-4"><i class="fas fa-chalkboard-teacher"></i> Teacher Preferences</h5>
+                    <p class="tab-desc">Rank your preferred teachers. Matches will boost the score significantly.</p>
+                    <div id="teacherPreferencesList" class="teacher-prefs-list">
+                        <!-- Populated dynamically via JS -->
+                        <div class="loading-text"><i class="fas fa-spinner fa-spin"></i> Preparing faculty list...</div>
+                    </div>
+                </div>
+
+                <!-- 3. Random Mode Content -->
+                <div id="prefTabContent-random" class="pref-tab-content">
+                    <div class="random-mode-info">
+                        <i class="fas fa-random"></i>
+                        <h4>Surprise Me!</h4>
+                        <p>We'll generate completely diverse timetables for you to explore.</p>
+                        <p>Perfect if you want to see all possibilities without constraints.</p>
+                    </div>
+                    <!-- Removed Time Constraints Options from Random Mode -->
+                </div>
+            </div>
+
+            <!-- Step 3: Results -->
+            <div id="generateStep3" class="generate-step-content">
+                <h3>Generated Timetables</h3>
+                <div id="generationStatus" class="generation-status"></div>
+
+                <!-- Two column layout: suggestions + preview -->
+                <div class="results-layout">
+                    <div class="suggestions-column">
+                        <div id="suggestionsList" class="suggestions-list">
+                            <!-- Suggestions rendered here -->
+                        </div>
+                        <div id="loadMoreContainer" class="load-more-container" style="display: none;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="loadMoreSuggestions()">
+                                <i class="fas fa-plus"></i> Load More
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="preview-column">
+                        <div id="miniTimetablePreview" class="mini-timetable-container">
+                            <div class="preview-placeholder">
+                                <i class="fas fa-table"></i>
+                                <p>Click a timetable to preview</p>
+                                <small>Use ← → to navigate, Enter to apply</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="generate-nav-buttons">
+                <button type="button" id="generatePrevBtn" class="btn btn-secondary" onclick="prevGenerateStep()"
+                    style="display: none;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button type="button" id="generateNextBtn" class="btn btn-primary" onclick="nextGenerateStep()">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" id="generateBtn" class="btn btn-success" onclick="generateTimetable()"
+                    style="display: none;">
+                    <i class="fas fa-magic"></i> Generate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Generate Modal Styles */
+    .generate-steps {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color, #e0e0e0);
+    }
+
+    .generate-steps .step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.5;
+        transition: opacity 0.3s;
+    }
+
+    .generate-steps .step.active,
+    .generate-steps .step.completed {
+        opacity: 1;
+    }
+
+    .generate-steps .step-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--primary-color, #3498db);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .generate-steps .step.completed .step-number {
+        background: var(--success-color, #27ae60);
+    }
+
+    .generate-step-content {
+        display: none;
+        min-height: 300px;
+    }
+
+    .generate-step-content.active {
+        display: block;
+    }
+
+    /* Course Selection */
+    .course-selection-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .select-all-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .credits-display {
+        font-weight: bold;
+        color: var(--primary-color, #3498db);
+    }
+
+    .course-selection-list {
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid var(--border-color, #e0e0e0);
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    .course-select-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid var(--border-color, #e0e0e0);
+        gap: 12px;
+    }
+
+    .course-select-item:last-child {
+        border-bottom: none;
+    }
+
+    .course-select-item.registered {
+        opacity: 0.5;
+        background: #f5f5f5;
+    }
+
+    .course-select-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+
+    .course-select-info {
+        flex: 1;
+    }
+
+    .course-select-code {
+        font-weight: bold;
+        color: var(--primary-color, #3498db);
+    }
+
+    .course-select-name {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .course-select-credits {
+        background: var(--accent-color, #9b59b6);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    /* Preferences */
+    .preference-section {
+        margin-bottom: 25px;
+    }
+
+    .preference-section h4 {
+        margin-bottom: 15px;
+        color: var(--primary-color, #3498db);
+    }
+
+    .preference-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .preference-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+
+    .preference-toggle:hover {
+        background: #e9ecef;
+    }
+
+    .faculty-preference-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .faculty-pref-col label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+
+    .faculty-select {
+        width: 100%;
+        height: 150px;
+        padding: 8px;
+        border: 1px solid var(--border-color, #e0e0e0);
+        border-radius: 8px;
+    }
+
+    .faculty-pref-col small {
+        display: block;
+        margin-top: 5px;
+        color: #888;
+    }
+
+    /* Suggestions */
+    .generation-status {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .suggestions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .suggestion-card {
+        border: 2px solid var(--border-color, #e0e0e0);
+        border-radius: 12px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .suggestion-card:hover {
+        border-color: var(--primary-color, #3498db);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .suggestion-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .suggestion-rank {
+        font-size: 18px;
+        font-weight: bold;
+        color: var(--primary-color, #3498db);
+    }
+
+    .suggestion-score {
+        background: var(--success-color, #27ae60);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+    }
+
+    .suggestion-slots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .suggestion-slot-tag {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+
+    .suggestion-details {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .suggestion-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .suggestion-actions .btn {
+        flex: 1;
+    }
+
+    .load-more-container {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    /* Navigation */
+    .generate-nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-color, #e0e0e0);
+    }
+
+    .loading-text {
+        text-align: center;
+        padding: 30px;
+        color: #888;
+    }
+
+    /* Count Display */
+    .count-display-section {
+        margin-top: 25px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    .count-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+    }
+
+    .count-box i {
+        color: var(--primary-color, #3498db);
+        font-size: 18px;
+    }
+
+    .count-box .count-number {
+        font-weight: bold;
+        font-size: 20px;
+        color: var(--success-color, #27ae60);
+    }
+
+    .count-box.loading {
+        color: #888;
+    }
+
+    .count-box.zero .count-number {
+        color: #e74c3c;
+    }
+
+    /* Results Layout - Two Column */
+    .results-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 20px;
+        margin-top: 15px;
+    }
+
+    .suggestions-column {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .preview-column {
+        min-height: 350px;
+    }
+
+    .mini-timetable-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 10px;
+        height: 100%;
+        min-height: 350px;
+    }
+
+    .preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #888;
+        text-align: center;
+    }
+
+    .preview-placeholder i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    .preview-placeholder p {
+        margin: 0;
+        font-size: 14px;
+    }
+
+    .preview-placeholder small {
+        font-size: 12px;
+        opacity: 0.7;
+    }
+
+    /* Mini Timetable Grid */
+    .mini-timetable {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+    }
+
+    .mini-timetable th,
+    .mini-timetable td {
+        border: 1px solid #ddd;
+        padding: 3px;
+        text-align: center;
+        height: 35px;
+    }
+
+    .mini-timetable th {
+        background: #3498db;
+        color: white;
+        font-weight: 500;
+        font-size: 8px;
+    }
+
+    .mini-timetable .time-col {
+        background: #3498db;
+        color: white;
+        font-size: 7px;
+        min-width: 50px;
+    }
+
+    .mini-timetable .day-header {
+        background: #2c3e50;
+        color: white;
+        font-weight: 600;
+        font-size: 10px;
+        width: 40px;
+    }
+
+    .mini-timetable .slot-filled {
+        background: rgba(46, 204, 113, 0.6);
+        font-weight: 600;
+        font-size: 9px;
+        color: #155724;
+    }
+
+    .mini-timetable .slot-empty {
+        background: #f9f9f9;
+    }
+
+    .preview-info {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .preview-info .credits-badge {
+        display: inline-block;
+        background: #27ae60;
+        color: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-weight: bold;
+    }
+
+    /* Tabbed Interface */
+    .pref-tabs {
+        display: flex;
+        gap: 20px;
+        border-bottom: 2px solid var(--border-color, #e0e0e0);
+        margin-bottom: 20px;
+    }
+
+    .pref-tab {
+        padding: 10px 15px;
+        cursor: pointer;
+        font-weight: 500;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pref-tab:hover {
+        color: var(--primary-color, #3498db);
+    }
+
+    .pref-tab.active {
+        color: var(--primary-color, #3498db);
+        border-bottom-color: var(--primary-color, #3498db);
+    }
+
+    .pref-tab-content {
+        display: none;
+        animation: fadeIn 0.3s;
+    }
+
+    .pref-tab-content.active {
+        display: block;
+    }
+
+    .tab-desc {
+        color: #666;
+        margin-bottom: 20px;
+        font-style: italic;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Time Mode Cards */
+    .time-mode-options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .time-mode-option input {
+        display: none;
+    }
+
+    .mode-card {
+        border: 2px solid var(--border-color, #e0e0e0);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mode-card:hover {
+        border-color: #b3d7ff;
+        background: #f8fbff;
+    }
+
+    .time-mode-option input:checked+.mode-card {
+        border-color: var(--primary-color, #3498db);
+        background: #e3f2fd;
+        box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
+    }
+
+    .mode-icon {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: var(--primary-color, #3498db);
+    }
+
+    .mode-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .mode-sub {
+        font-size: 11px;
+        color: #666;
+    }
+
+    /* Teacher Preferences */
+    .teacher-prefs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .teacher-pref-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        border: 1px solid #eee;
+    }
+
+    .teacher-course-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+
+    .teacher-rank-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+    }
+
+    .rank-select-group label {
+        display: block;
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+
+    .rank-select {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+
+    /* Random Mode Info */
+    .random-mode-info {
+        text-align: center;
+        padding: 30px;
+        background: #f0f7ff;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .random-mode-info i {
+        font-size: 40px;
+        color: var(--accent-color, #9b59b6);
+        margin-bottom: 15px;
+    }
+
+    .preference-toggle-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 15px;
+    }
+</style>

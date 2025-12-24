@@ -98,6 +98,43 @@ def delete_registration(reg_id):
     
     return jsonify({'success': True})
 
+
+@registration_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_registrations():
+    """Delete multiple registrations at once."""
+    query = get_current_registrations_query()
+    if query is None:
+        return jsonify({'error': 'No active session'}), 401
+    
+    data = request.get_json() or {}
+    reg_ids = data.get('registration_ids', [])
+    
+    if not reg_ids:
+        return jsonify({'error': 'No registrations specified'}), 400
+    
+    # Convert string IDs to integers (handles JS precision issue)
+    try:
+        reg_ids = [int(rid) for rid in reg_ids]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid registration ID format'}), 400
+    
+    # Find registrations owned by current user
+    registrations = query.filter(Registration.id.in_(reg_ids)).all()
+    
+    if not registrations:
+        return jsonify({'error': 'No valid registrations found'}), 404
+    
+    deleted_count = len(registrations)
+    for reg in registrations:
+        db.session.delete(reg)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'deleted_count': deleted_count
+    })
+
 @registration_bp.route('/<int:reg_id>', methods=['PUT'])
 def update_registration(reg_id):
     """Update registration to a different slot."""

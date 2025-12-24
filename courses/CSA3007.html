@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+<!-- saved from url=(0090)https://dev.vitbhopal.ac.in/WINTER%20SEMESTER%202025-26_ALL_registration/checkRegistration -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<!--<base href="https://dev.vitbhopal.ac.in/WINTER%20SEMESTER%202025-26_ALL_registration/">--><base href="."> 
+   	<link href="https://dev.vitbhopal.ac.in/WINTER%20SEMESTER%202025-26_ALL_registration/assets/img/favicon1.png" rel="icon" type="image/x-icon">
+	
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta http-equiv="cache-control" content="max-age=0">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">
+	<title>VIT - VTOP REGISTRATION</title>
+		<!-- Tell the browser to be responsive to screen width -->
+	<meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">	
+	<link rel="stylesheet" href="./CSA3007_files/lightweight.css">
+    <link rel="stylesheet" href="./CSA3007_files/login.css">
+    <link rel="stylesheet" href="./CSA3007_files/sweetalert.css">
+    <link rel="stylesheet" href="./CSA3007_files/font-awesome.min.css">
+
+	<style>	.trim{padding:0px;margin:0px;} </style>
+
+
+</head>
+<body class="hold-transition skin-blue-light sidebar-mini fixed" id="errorMsg" style="">
+	<header class="main-header">
+				<div class="container">
+				<div class="logo">
+					<img src="./CSA3007_files/vitlogo.png" alt="User Image" width="230" height="105">
+				</div>
+				<div class="header-description"> 
+					<br>
+			   		<h1>VTOP</h1>
+			   		<!-- <h3>WINTER SEMESTER 2020-21 COURSE REGISTRATION</h3> -->
+			   		<!-- <h3>  FALL INTER SEMESTER - II 2023-24 COURSE REGISTRATION FOR BATCH-2023(BATCH-II - B.Tech/ Int.Mtech/ Int.MSc)</h3> -->
+			   		<h3>  WINTER SEMESTER 2025-26 COURSE REGISTRATION (ALL)</h3>
+			   		<br><br>
+			   	</div>
+			   	</div>
+		</header>
+	<div class="top-info" style="color: rgb(0, 0, 0); font-family: times new roman; font-weight: bold; text-align: left; float: left; width: 100%; background-color: rgb(221, 221, 221); padding: 11px 0px; font-size: 16px;">
+		<div class="container">		
+			<span>23BCE10983 - TAUFIQ AHAMED - BCE - Computer Science and Engineering - BTECH</span>				  
+			<span id="servertime" style="float: right;">23-Dec-2025 20:32:01</span>					
+			<input type="hidden" id="currentDateTime" name="currentDateTime" value="12/23/2025 08:25:08 PM">
+		</div>
+	</div>
+	
+	<div class="row full-main-sec" style="background-color: rgb(255, 255, 255); border-bottom: 10px solid rgb(221, 221, 221); border-top: 5px solid rgb(221, 221, 221);">		
+		<div class="container">		
+			<div class="col-4 left-info" style="width: 30%;">
+			<br>
+				<div id="NotesRow" style="display: none;">
+					<span style="font-weight: bold; color: red;">Note :</span>
+					<p style="color: blue; font-weight: bold; font-style: oblique; text-align: justify;">This part will enable after selecting the Course Registration Option given below.</p>				
+				</div>
+				<div style="width: 100%;" id="showFlag">					
+						<div id="searchRow1">
+							<label class="col-sm-3 control-label left-col" style="text-align: left;">Search by :</label>
+							<div class="right-col">
+								<select id="searchOption" name="searchOption" onchange="searchOptionChange(2);" style="padding: 5px 10px;border: 1px solid #ddd;width:86%;">
+									<option value="1">Course Code</option>
+								</select>
+								</div>
+							</div>
+				</div>
+				
+				<div id="searchRow3" style="float: left; text-align: center; width: 100%;">
+					
+					<div class="right-col" style="width:100%;">
+					<label class="col-sm-3 control-label left-col" style="text-align: left; padding: 10px;">Code : </label>
+					
+						<input style="width: 70%; max-width:100%;float: right; padding: 5px; margin-top: 10px;" type="text" placeholder="Enter the Course Code" id="searchValue" name="searchValue">	
+					 </div>	
+					 <div style="width:100%;float:left;"> 
+						<button type="button" id="findBtn" name="findBtn" onclick="findBtnSearchValue();" class="w3-btn w3-btn-blue w3-round-large findbtn">Find</button>	
+					 </div>				
+				</div>
+			</div>
+			
+			<div class="col-4 main-info" style="min-height:180px; border-right: 10px solid rgb(221, 221, 221);        border-left: 10px solid rgb(221, 221, 221);padding:20px;width: 40%;">
+				<div style="float: none; margin: auto;" class="main-info-inside">
+					<ul class="listing" style="size: 10px;">
+						<li><i class="fa fa-home" aria-hidden="true" style="color:green;"></i>
+						<button onclick="viewRegOption();" class="link" style="font-weight: bold;">Home</button></li>
+						<li><i class="fa fa-book" aria-hidden="true" style="color:rgb(224,92,38);"></i>
+						<button onclick="viewRegistered();" class="link" style="font-weight: bold;">View Registered Course(s)</button></li>
+						<li><i class="fa fa-pencil-square-o" aria-hidden="true" style="color:rgb(220,123,36);"></i>
+						<button onclick="modifySlots();" class="link" style="font-weight: bold;">Modify Slot(s) </button></li>						
+						<li><i class="fa fa-trash" style="color:red;"></i>
+						<button onclick="deleteCourse();" class="link" style="font-weight: bold;">Delete Registered Course(s)</button></li>
+						<li><i class="fa fa-area-chart" style="color:black;"></i>
+						<button onclick="curriculumCredits();" class="link" style="font-weight: bold;">Curriculum Credits View </button></li>												
+					</ul>
+				</div>
+			</div>
+			
+			<div class="col-4 right-info" style="padding:10px;width: 30%;">
+				<div class="col-sm-12 form-group">
+					<!-- <h5>Maximum credit(s) &nbsp;&nbsp;: <span style="color: red;">&nbsp;&nbsp; 27</span></h5>
+					<h5>Minimum credit(s) &nbsp;&nbsp;: <span style="color: red;">&nbsp;&nbsp; 16</span></h5> -->
+					<div id="creditsFragment"><div id="creditsFragment">
+						<table style="border: 8px solid; width: 100%; border-color: rgb(221, 221, 221);">
+							<tbody><tr>
+								<td style="width: 30%; border-color: rgb(221, 221, 221); color:black; text-align: center;           background: #000428;  /* fallback for old browsers */           background: -webkit-linear-gradient(to right, #004e92, #000428);  /* Chrome 10-25, Safari 5.1-6 */           background: linear-gradient(to right, #004e92, #000428); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */           color:white;">
+									
+								</td>
+								<td style="width: 20%;           background: #000428;  /* fallback for old browsers */           background: -webkit-linear-gradient(to right, #004e92, #000428);  /* Chrome 10-25, Safari 5.1-6 */           background: linear-gradient(to right, #004e92, #000428); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */           color:white;">
+									Credits
+								</td>
+								<td style="width: 20%;           background: #000428;  /* fallback for old browsers */           background: -webkit-linear-gradient(to right, #004e92, #000428);  /* Chrome 10-25, Safari 5.1-6 */           background: linear-gradient(to right, #004e92, #000428); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */           color:white; ">
+									Courses
+								</td>
+							</tr>
+							
+							<tr>
+								<td style="background: #000428;  /* fallback for old browsers */           background: -webkit-linear-gradient(to right, #004e92, #000428);  /* Chrome 10-25, Safari 5.1-6 */           background: linear-gradient(to right, #004e92, #000428); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */           color:white; ">Maximum</td>
+								<td style="text-align: center; font-weight: bold;">27</td>
+								<td style="text-align: center; font-weight: bold;"> - </td>
+							</tr>
+							<tr>
+								<td style="background: #000428;  /* fallback for old browsers */           background: -webkit-linear-gradient(to right, #004e92, #000428);  /* Chrome 10-25, Safari 5.1-6 */           background: linear-gradient(to right, #004e92, #000428); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */           color:white; ">Minimum</td>
+								<td style="text-align: center; font-weight: bold;">3</td>
+								<td style="text-align: center; font-weight: bold;"> - </td>
+							</tr>
+							<tr>
+								<td style="background: #000428;  /* fallback for old browsers */           background: -webkit-linear-gradient(to right, #004e92, #000428);  /* Chrome 10-25, Safari 5.1-6 */           background: linear-gradient(to right, #004e92, #000428); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */           color:white; ">Registered</td>
+								<td style="text-align: center; font-weight: bold;">26</td>
+								<td style="text-align: center; font-weight: bold;">8</td>
+							</tr>
+							
+						</tbody></table> 
+					</div></div>
+					<br>
+					<button type="button" onclick="location.href=&#39;processLogout&#39;" class="btn-warning w3-btn w3-btn-red w3-round-large" style="font-weight: bold;">Sign out</button>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+
+	<div class="content-wrapper" id="page-wrapper"><div class="">
+
+				<div class="margin-homepage">
+					<div class="container">
+					
+					
+					<input type="hidden" id="page" name="page" value="8">
+					<input type="hidden" id="searchType" name="searchType" value="0">
+					<input type="hidden" id="searchVal" name="searchVal" value="NONE">
+					<div style="text-align: center; text-decoration: underline;">
+							<h3>VIEW SLOTS</h3>
+						</div>
+					
+					  	
+						<table class="w3-table-all w3-card-4 w3-hoverable" style="background-color: #e0f8f8;">
+							 
+							<thead>
+								<tr class="w3-blue">
+									
+									<th style="text-align: center;border: 1px solid #3c8dbc;">Course Owner</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">Course Code</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">Course Title</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">L</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">T</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">P</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">J</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">C</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">Pre-Requisite</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">Co-Requisite</th>
+									<th style="text-align: center;border: 1px solid #3c8dbc;">Anti-Requisite</th>
+								</tr>
+							</thead>
+								<tbody><tr>
+									
+									
+									
+									
+									
+									
+									
+									
+									<td style="text-align: center;border: 1px solid #3c8dbc;">SCSE</td>
+									
+									
+									
+									
+									
+									
+									<td style="text-align: center;border: 1px solid #3c8dbc;">CSA3007</td>									
+									<td style="border: 1px solid #3c8dbc;">DEEP LEARNING</td>
+									<td style="text-align: center;border: 1px solid #3c8dbc;"><span>2</span></td>
+									<td style="text-align: center;border: 1px solid #3c8dbc;"><span>1</span></td>
+									<td style="text-align: center;border: 1px solid #3c8dbc;"><span>1</span></td> 
+									<td style="text-align: center;border: 1px solid #3c8dbc;"><span>0</span></td>
+									<td style="text-align: center;border: 1px solid #3c8dbc;"><span>4</span></td>
+									<td style="border: 1px solid #3c8dbc;"></td>
+									<td style="border: 1px solid #3c8dbc;"></td>
+									<td style="border: 1px solid #3c8dbc;"></td>
+								</tr>
+						</tbody></table>
+						<br>
+					<table class="w3-table-all w3-card-4 w3-hoverable" style="background-color: #e0f8f8; ">
+							<thead>
+								<tr class="w3-blue" valign="middle">
+									
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Course Type</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Slot</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Venue</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Faculty</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Slot Status<br>(i.e. with Registered Course)</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Total Seats</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Alloted Seats</th>
+									<th style="border: 1px solid #3c8dbc; text-align: center;">Available Seats</th>									
+									
+										
+									
+									
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A14+D11+D12</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-128-Audi2</td>									
+									<td style="border: 1px solid #3c8dbc;">PRAVEEN LALWANI</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with D11/ D12</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">0</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A14+D11+D12</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-402</td>									
+									<td style="border: 1px solid #3c8dbc;">SIDDHARTH SINGH CHOUHAN</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with D11/ D12</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">0</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A21+A22+A23</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-311</td>									
+									<td style="border: 1px solid #3c8dbc;">PON HARSHAVARDHANAN</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with C11/ C13/ C12</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">42</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">78</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A21+A22+A23</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-414</td>									
+									<td style="border: 1px solid #3c8dbc;">VIVEK </td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with C11/ C13/ C12</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">102</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">18</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A24+E21+F22</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-403</td>									
+									<td style="border: 1px solid #3c8dbc;">VIVEK </td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with A24/ E21</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">67</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">53</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A24+E21+F22</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-301</td>									
+									<td style="border: 1px solid #3c8dbc;">RAGHAVENDRA MISHRA</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with A24/ E21</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">65</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">55</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">A24+E21+F22</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-428</td>									
+									<td style="border: 1px solid #3c8dbc;">PRAVEEN KUMAR TYAGI</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with A24/ E21</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">0</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">B21+E14+E22</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-301</td>									
+									<td style="border: 1px solid #3c8dbc;">SHIV SHANKAR PRASAD SHUKLA</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with B21/ E14</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">0</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">B22+B24+F21</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">LC-002</td>									
+									<td style="border: 1px solid #3c8dbc;">HARIHARAN R</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: green;">NONE</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">30</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">90</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">B22+B24+F21</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-423</td>									
+									<td style="border: 1px solid #3c8dbc;">SHIV SHANKAR PRASAD SHUKLA</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: green;">NONE</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">100</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">20</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">B22+B24+F21</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-301</td>									
+									<td style="border: 1px solid #3c8dbc;">RAGHAVENDRA MISHRA</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: green;">NONE</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">73</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">47</td>									
+																		
+								</tr>
+								
+								<tr>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">Lecture and Tutorial ,practical hours only</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">C14+E11+E12</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">AB02-127-Audi1</td>									
+									<td style="border: 1px solid #3c8dbc;">PRAVEEN LALWANI</td>
+									
+									<td style="border: 1px solid #3c8dbc; text-align: center;">
+										
+											
+										
+										
+										<span style="color: red;">Clashed with E12</span>
+									</td>
+																													
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">120</td>
+									<td style="border: 1px solid #3c8dbc; text-align: center;">0</td>									
+																		
+								</tr>
+								
+							</thead>
+						</table>
+						 <div class="login-reset-btn" style="margin-bottom: 20px;">
+					  		<button type="button" style="width: auto; margin: 20px 0px;" class="btn-warning w3-btn w3-btn-blue w3-round-large" onclick="goBack();">Go Back</button>
+				    	</div>
+					</div>
+				
+
+				</div>
+			</div></div>
+
+	<footer class="main-footer">
+  <div>
+   	<div style="padding:10px 0;">
+		Copyright © 2020 Software Development Cell (VIT)
+	</div>
+  </div>
+
+    <script src="./CSA3007_files/jquery-2.2.3.min.js"></script>
+    <script src="./CSA3007_files/jquery-ui.min.js"></script>
+    <script src="./CSA3007_files/sweetalert.min.js"></script>
+    <script src="./CSA3007_files/jquery.hotkeys.js"></script>
+    <script src="./CSA3007_files/jquery.blockUI.js"></script> 
+    <script src="./CSA3007_files/vit-custom.js"></script>
+
+      <script>
+      /*<![CDATA[*/
+    	  	var currenttime = $('#currentDateTime').val();// '6/28/2017 6:27:21 PM';
+			var montharray = new Array("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
+			var serverdate = new Date(currenttime);
+		
+			function padlength(what)
+			{
+				var output = (what.toString().length==1)? "0"+what : what;
+				return output;
+			}
+				
+			function displaytime()
+			{
+				serverdate.setSeconds(serverdate.getSeconds()+1);
+				var datestring = padlength(serverdate.getDate()) +"-"+ montharray[serverdate.getMonth()] +"-"+ serverdate.getFullYear();
+				var timestring = padlength(serverdate.getHours())+":"+padlength(serverdate.getMinutes())+":"+padlength(serverdate.getSeconds());
+				document.getElementById("servertime").innerHTML = datestring+" "+timestring;
+			} 
+			
+		    $(document).bind('keydown', 'alt+right', function(e) {
+		        e.preventDefault();
+		    });
+		
+		    $(document).bind('keydown', 'alt+left', function(e) {
+		       e.preventDefault();
+		    }); 
+      
+      	history.pushState(null, null, document.URL);
+      	window.addEventListener('popstate', function() {
+        history.pushState(null, null, document.URL);
+      });
+     /*]]>*/	
+    </script>
+  </footer>
+
+	<script>
+	/*<![CDATA[*/			
+			
+		viewRegOption();
+		
+		var logoutMsg = null;				
+		
+		if ((logoutMsg != null) && (logoutMsg != ""))
+		{
+			swal({
+		    	title: logoutMsg,
+		    	type : 'info',
+		    	confirmButtonColor: '#3085d6'
+			},
+			
+			function(button) 
+			{			
+			    if (button == true) 
+			    {
+			    	window.setTimeout(function ()
+			    	{
+			    		
+			    	}, 0);		    			    	
+			    }
+			});
+		}
+
+		$(function() 
+		{
+			$('#searchValue').keyup(function() 
+			{
+				$(this).val($(this).val().toUpperCase());
+			});
+		});		
+		
+		function viewRegOption() 
+		{			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "viewRegistrationOption",
+				type : "POST",
+				cache : false,
+				processData : false,
+				contentType : false,													
+				success : function(response) 
+				{				
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					if (showFlag==0)
+					{						
+						document.getElementById("showFlag").style.display="none";
+						document.getElementById("searchRow3").style.display="none";
+						document.getElementById("NotesRow").style.display="";
+					}
+					
+					viewCredits();				
+				}
+			});
+		}
+		
+		function viewSearchRegistrationOption(regOption,subCourseOpt) 
+		{	
+			var params = "registrationOption="+ regOption +"&pageSize=5&page=1&subCourseOption="+ 
+							subCourseOpt +"&flag=0";
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processRegistrationOption",
+				type : "POST",
+				data : params,
+				success : function(response) 
+				{				
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					if (showFlag > 0)
+					{								
+						document.getElementById("showFlag").style.display="";
+						document.getElementById("NotesRow").style.display="none";
+						document.getElementById("searchOption").selectedIndex = 0;								
+						searchOptionChange(2);
+					}
+					
+					viewCredits();
+				}
+			});
+		}
+
+		function viewRegistrationOption() 
+		{
+			var subCourseOpt = "";
+			var chkFlag = 0;
+			var regOption = $('input[name=registrationOption]:checked').val();
+			
+			if ($('input[name=registrationOption]:checked').length <= 0) 
+			{				
+				swal({
+			    	title: "Choose Any One Option",			    	
+			    	confirmButtonColor: '#3085d6'
+				},
+				
+				function(button) 
+				{			
+				    if (button == true) 
+				    {
+				    	window.setTimeout(function ()
+				    	{
+				    		
+				    	}, 0);		    			    	
+				    }
+				});
+				
+				return false;
+			}
+			else
+			{
+				chkFlag = 1;	
+			}
+			
+			if (chkFlag == 1)
+			{
+				var params = "registrationOption="+ regOption +"&pageSize=5&page=1&subCourseOption="+ 
+								subCourseOpt +"&flag=0";
+				
+				$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+				
+				$.ajax({
+					url : "processRegistrationOption",
+					type : "POST",
+					data : params,
+					success : function(response) 
+					{				
+						$('#page-wrapper').html(response);
+						$.unblockUI();
+						
+						if (showFlag > 0)
+						{								
+							document.getElementById("showFlag").style.display="";
+							document.getElementById("NotesRow").style.display="none";
+							document.getElementById("searchOption").selectedIndex = 0;								
+							searchOptionChange(2);
+						}
+						
+						viewCredits();
+					}
+				});
+			}
+		}
+
+		function searchOptionChange(val) 
+		{				
+			if (val == 1) 
+			{				
+				document.getElementById("searchRow3").style.display="none";
+				document.getElementById("searchSchoolWise").disabled = false;
+				document.getElementById("searchBtn").style.display="";
+			}
+			
+			else if (val == 2)
+			{
+				document.getElementById("searchRow3").style.display="";				
+				document.getElementById("searchBtn").style.display="none"; 
+				document.getElementById("searchValue").value = "";
+				document.getElementById("searchValue").placeholder = pHolderCode;
+				document.getElementById("searchSchoolWise").disabled = true;
+			}
+			else if (val == 3)
+			{
+				document.getElementById("searchSchoolWise").disabled = true;
+				document.getElementById("searchRow3").style.display="";				
+				document.getElementById("searchBtn").style.display="none";
+				document.getElementById("searchValue").value = "";
+				document.getElementById("searchValue").placeholder = pHolderTitle;	
+			}					
+		}
+
+		function searchSchoolWiseChange() 
+		{
+			var searchOpt = $('#searchOption :selected').val();
+			var searchSchoolOpt = $('#searchSchoolWise :selected').val();
+			var dataParameter = "pageSize=5&page=1&searchType=" + searchOpt + "&searchVal=" + searchSchoolOpt;
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processSearch",
+				type : "POST",
+				data : dataParameter,												
+				success : function(response) 
+				{				
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}
+
+		function findBtnSearchValue() 
+		{
+			var searchOpt = $('#searchOption :selected').val();
+			var searchVal = $('#searchValue').val();
+			var dataParameter = "&pageSize=5&page=1&searchType=" + searchOpt + "&searchVal=" + searchVal;
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+
+			$.ajax({
+				url : "processSearch",
+				type : "POST",
+				data : dataParameter,
+				
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}		
+
+		function viewRegistered() 
+		{			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "viewRegistered",
+				type : "POST",
+				
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					if (showFlag==0)
+					{						
+						document.getElementById("showFlag").style.display="none";
+						document.getElementById("searchRow3").style.display="none";
+						document.getElementById("NotesRow").style.display="";
+					}
+					viewCredits();
+				}
+			});
+		}
+
+		function deleteCourse() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "deleteRegisteredCourse",
+				type : "POST",
+				cache : false,
+				processData : false,
+				contentType : false,
+													
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					if (showFlag==0)
+					{						
+						document.getElementById("showFlag").style.display="none";
+						document.getElementById("searchRow3").style.display="none";
+						document.getElementById("NotesRow").style.display="";
+					}
+					viewCredits();
+				}
+			});
+		}
+		
+		function curriculumCredits() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "viewCurriculumCredits",
+				type : "POST",
+				cache : false,
+				processData : false,
+				contentType : false,
+													
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					if (showFlag==0)
+					{						
+						document.getElementById("showFlag").style.display="none";
+						document.getElementById("searchRow3").style.display="none";
+						document.getElementById("NotesRow").style.display="";
+					}
+					viewCredits();
+				}
+			});
+		}
+		
+		function callCourseRegistration(courseId, page, searchType, searchVal) 
+		{
+			page = $("#pageNo").val();
+			var dataParameter = "courseId="+ courseId +"&page="+ page +"&searchType="+ 
+									searchType +"&searchVal=" + searchVal;
+				
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processCourseRegistration",
+				type : "POST",
+				data : dataParameter,
+				success : function(response) 
+				{		
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+		
+		function getResults(pageSize, page, searchType, searchVal) 
+		{
+			if (page) 
+			{
+				params = "pageSize=" + pageSize + "&page=" + page + "&searchType=" + searchType + "&searchVal=" + searchVal + "&flag=1";
+			} 
+			else 
+			{
+				params = "pageSize=" + pageSize + "&searchType=" + searchType + "&searchVal=" + searchVal + "&flag=1";
+			}
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+		
+			$.ajax({
+				url : "processRegistrationOption",
+				type : "POST",
+				data : params,
+				success : function(response) 
+				{	
+					$("#cclistfrag").html(response);
+					$.unblockUI();
+				},
+				error : function(jqXHR, textStatus, errorMessage) 
+				{
+					$.unblockUI();
+				}
+			});
+		}
+		
+		function callPageOnLoad()
+		{
+			var pageSize = $("#selectedPageSize").val();
+			var page = $("#pageNo").val();
+			var searchType = $("#srhType").val();
+			var searchVal = $("#srhValue").val();
+			var totalPage = $("#totalPage").val();
+									
+			getResults2(pageSize, page, searchType, searchVal, totalPage);
+		}
+		
+		function getResults2(pageSize, page, searchType, searchVal, totalPage)
+		{							
+			if (parseInt(page) <= 0)
+			{
+				page = 1;
+			}
+			else if (parseInt(page) >= parseInt(totalPage))
+			{
+				page = totalPage;
+			}
+			$("#pageNo").val(page);
+									
+			var halfPagesToShow = pageSize / 2;
+			var startPage = 0, endPage = 0;
+
+			if (parseInt(totalPage) <= parseInt(pageSize))
+			{
+				startPage = 1;
+				endPage = totalPage;
+			}
+			else if ((parseInt(page) - parseInt(halfPagesToShow)) <= 0)
+			{
+				startPage = 1;
+				endPage = pageSize;
+			}
+			else if ((parseInt(page) + parseInt(halfPagesToShow)) == parseInt(totalPage))
+			{
+				startPage = parseInt(page) - parseInt(halfPagesToShow);
+				endPage = totalPage;
+			}
+			else if ((parseInt(page) + parseInt(halfPagesToShow)) > parseInt(totalPage))
+			{
+				startPage = (parseInt(totalPage) - parseInt(pageSize)) + 1;
+				endPage = totalPage;
+			}
+			else
+			{
+				startPage = parseInt(page) - parseInt(halfPagesToShow);
+				endPage = parseInt(page) + parseInt(halfPagesToShow);
+			}
+			
+			for (var i=1; i <= totalPage; i++) 
+			{
+				if (parseInt(i) == parseInt(page)) 
+				{				
+					document.getElementById("pageDivId"+i).style.display = "block";
+					document.getElementById("pgNoLiId1_"+i).className = "active pointer-disabled";
+					document.getElementById("pgNoLiId2_"+i).className = "active pointer-disabled";
+				}
+				else
+				{
+					document.getElementById("pageDivId"+i).style.display = "none";
+					document.getElementById("pgNoLiId1_"+i).className = "disabled";
+					document.getElementById("pgNoLiId2_"+i).className = "disabled";
+				}
+				
+				if ((parseInt(i) >= parseInt(startPage)) && (parseInt(i) <= parseInt(endPage)))
+				{
+					document.getElementById("pgNoLiId1_"+i).style.display = "block";
+					document.getElementById("pgNoLiId2_"+i).style.display = "block";
+				}
+				else
+				{
+					document.getElementById("pgNoLiId1_"+i).style.display = "none";
+					document.getElementById("pgNoLiId2_"+i).style.display = "none";
+				}
+			}
+		}
+		
+		function processPageNumbers(pageSize, page, searchType, searchVal, totalPage, processType) 
+		{
+			if (page) 
+			{
+				params = "pageSize="+ pageSize +"&page="+ page 
+							+"&searchType="+ searchType +"&searchVal="+ searchVal 
+							+"&totalPage="+ totalPage +"&processType="+ processType;
+			} 
+			else 
+			{
+				params = "pageSize="+ pageSize +"&searchType="+ searchType 
+							+"&searchVal="+ searchVal +"&totalPage="+ totalPage 
+							+"&processType="+ processType;
+			}
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processPageNumbers",
+				type : "POST",
+				data : params,
+			
+				success : function(response) 
+				{
+					if (processType == 1)
+					{
+						$('#pageNoFrag').html(response);
+					}
+					else if (processType == 2)
+					{
+						$('#pageNoFrag2').html(response);
+					}
+					
+					$.unblockUI();
+				}
+			});
+		}
+
+		function call_search(searchType) 
+		{
+			var dataParameter = "";
+
+			if (parseInt(searchType) == 1) 
+			{
+				getResults(5,0,searchType,document.CourseCatalogue.code.value);
+			} 
+			else if (parseInt(searchType) == 2) 
+			{
+				getResults(5,0,searchType,document.CourseCatalogue.title.value);
+			} 
+			else 
+			{
+				getResults(5,0,0,"");
+			}
+		}
+
+		function scrollToBottom(id) 
+		{
+			div_height = $("#" + id).height();
+			div_offset = $("#" + id).offset().top;
+			window_height = $(window).height();
+			$('html,body').animate({
+				scrollTop : div_offset - window_height + div_height
+			}, 'slow');
+		} 
+		/************COURSE LIST*****************/
+
+		/************COURSE REGISTRATION*****************/
+		
+		function RegisterProjectCourse(urlPage) 
+		{			
+			var costCentreId = "";
+			var guideEmpId =  "";
+			var projectTitle = "";
+			var courseCode = $('#courseCodehid').val();
+			var courseType = $('#courseTypehid').val();
+			var courseId = $('#courseIdhid').val();
+			var clashSlot = $('#clashSlot').val();
+			var classId = $('#classId').val();
+			var slotId = $('#slotId').val();
+			var page = $('#page').val();
+			var programCode = $('#programCode').val();
+			var evaluationType = $('#evaluationType').val();
+			var searchVal = $('#searchVal').val();
+			var searchType = $('#searchType').val();
+			var courseOption = $('#courseOption').val();
+			var projectOption = $("input[name='projectOption']:checked").val();
+			var subCourseOption = "";
+			var projectDuration = 0;
+			var vldFlg = 0;
+			
+			
+			if ((evaluationType == 'GUIDE') || (evaluationType == 'CAPSTONE'))
+			{
+				projectDuration = 6;
+			}
+							
+			if(programCode == 'MTECH' || programCode == 'MCA')
+			{
+					projectDuration = 12;
+			}		
+			
+			var vldFlg = 1;
+			var vldFlg2 = 1;
+			
+			if ((evaluationType == 'GUIDE') || (evaluationType == 'CAPSTONE')){
+				
+				if ($('input[name=projectOption]:checked').length <= 0) 
+				{
+					vldFlg2 = 2;					
+					swal({
+				    	title: "Select Project Option",			    	
+				    	confirmButtonColor: '#3085d6'
+					},
+					
+					function(button) 
+					{			
+					    if (button == true) 
+					    {
+					    	window.setTimeout(function ()
+					    	{
+					    		
+					    	}, 0);		    			    	
+					    }					    
+					});					
+				}else{
+					vldFlg2 = 1;
+				}
+				
+				if(projectOption=='RGR' && vldFlg2 == 1)
+				{
+					costCentreId = $('#guideSchoolWise').val();
+					guideEmpId =  $('#guideId').val();
+					projectTitle = $('#projectTitle').val();
+					
+					if ((costCentreId == '') || (costCentreId == '0')){
+						vldFlg = 2;					
+						swal({
+					    	title: "Select School [Cost Centre]",			    	
+					    	confirmButtonColor: '#3085d6'
+						},
+						
+						function(button) 
+						{			
+						    if (button == true) 
+						    {
+						    	window.setTimeout(function ()
+						    	{
+						    		
+						    	}, 0);		    			    	
+						    }					    
+						});					
+					}
+					
+					if (vldFlg == 1){
+						if ((guideEmpId == '') || (guideEmpId == 'NONE')){
+							vldFlg = 2;
+							
+							swal({
+						    	title: "Select Project Guide",			    	
+						    	confirmButtonColor: '#3085d6'
+							},
+							
+							function(button) 
+							{			
+							    if (button == true) 
+							    {
+							    	window.setTimeout(function ()
+							    	{
+							    		
+							    	}, 0);		    			    	
+							    }
+							});						
+						}
+					}
+					if (vldFlg == 1){
+						if (projectTitle == ''){
+							vldFlg = 2;						
+							swal({
+						    	title: "Enter Project Title",			    	
+						    	confirmButtonColor: '#3085d6'
+							},
+							
+							function(button) 
+							{			
+							    if (button == true) 
+							    {
+							    	window.setTimeout(function ()
+							    	{
+							    		
+							    	}, 0);		    			    	
+							    }
+							});						
+						}
+					}
+					
+					if ((vldFlg == 1))
+					{
+						if (document.getElementById("projectDurationOption")!=null)
+						{
+							if ($('input[name=projectDurationOption]:checked').length <= 0) 
+							{				
+								vldFlg = 2;
+								swal({
+								   	title: "Choose Any One Option for Project Duration",			    	
+								   	confirmButtonColor: '#3085d6'
+								},
+									
+								function(button) 
+								{			
+									if (button == true) 
+									{
+										window.setTimeout(function ()
+									    {
+									       	
+									    }, 0);		    			    	
+									}
+								});
+							}	
+						}
+						
+					}
+				}else{
+					vldFlg == 1;
+				}
+				
+			}		
+			
+			
+			var dataParameter =	"costCentreId=" +costCentreId + 
+			 					"&guideErpId=" + guideEmpId + 
+								"&projectTitle=" + projectTitle +
+								"&courseCode=" + courseCode +
+								"&courseType=" + courseType +
+								"&courseId=" + courseId +
+								"&projectOption=" + projectOption +
+								"&clashSlot=" + clashSlot +
+								"&slotId=" + slotId +
+								"&page=" + page +
+								"&classId=" + classId +
+								"&projectDuration=" + projectDuration +
+								"&searchType= " + searchType +
+								"&searchVal=" +  searchVal +
+								"&courseOption=" + courseOption + 
+								"&subCourseOption=" + subCourseOption;
+						
+			if (vldFlg == 1 && vldFlg2 == 1)
+			{
+				$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+				
+				$.ajax({
+					url : urlPage,
+					type : "POST",
+					data : dataParameter,
+					
+					success : function(response) 
+					{
+						$('#page-wrapper').html(response);
+						$.unblockUI();
+						
+						viewCredits();
+					}
+				});
+			}
+		}
+				
+		function enablecourseOption()
+		{
+			var courseOption = document.getElementsByName("CourseOption");
+			
+			for (var i = 0; i < courseOption.length; i++) 
+			{
+				if (courseOption[i].checked == true)
+				{
+					var d = courseOption[i].value;					
+					
+					if (d == 'MIN')
+					{
+							document.getElementById("show1").style.visibility = "visible";
+							
+							if (document.getElementById("show2")!=null)
+							{
+								document.getElementById("show2").style.visibility = 'hidden';
+								document.getElementById("subCourseOption").selectedIndex = 0;
+							}
+							
+							if (document.getElementById("show3")!=null)
+							{
+								document.getElementById("show3").style.visibility = 'hidden';
+								document.getElementById("subCourseOption").selectedIndex = 0;
+							} 
+																				
+					}
+					else if (d == 'HON')
+					{
+						document.getElementById("show2").style.visibility = "visible";
+						
+						if (document.getElementById("show1")!=null)
+						{
+							document.getElementById("show1").style.visibility = 'hidden';
+							document.getElementById("subCourseOption").selectedIndex = 0;
+						}
+						
+						if (document.getElementById("show3")!=null)
+						{
+							document.getElementById("show3").style.visibility = 'hidden';
+							document.getElementById("subCourseOption").selectedIndex = 0;
+						}							
+					}
+					else if (d == 'CS')
+					{
+							document.getElementById("show3").style.visibility = "visible";
+							if (document.getElementById("show2")!=null)
+							{
+								document.getElementById("show2").style.visibility = 'hidden';
+								document.getElementById("subCourseOption").selectedIndex = 0;
+							}
+							
+							if (document.getElementById("show1")!=null)
+							{
+								document.getElementById("show1").style.visibility = 'hidden';
+								document.getElementById("subCourseOption").selectedIndex = 0;
+							}
+																			
+					}
+					else
+					{
+						if (document.getElementById("show1")!=null)
+						{
+							document.getElementById("show1").style.visibility = 'hidden';
+							document.getElementById("subCourseOption").selectedIndex = 0;
+						}
+						
+						if (document.getElementById("show2")!=null)
+						{
+							document.getElementById("show2").style.visibility = 'hidden';
+							document.getElementById("subCourseOption").selectedIndex = 0;
+						}
+						
+						if (document.getElementById("show3")!=null)
+						{
+							document.getElementById("show3").style.visibility = 'hidden';
+							document.getElementById("subCourseOption").selectedIndex = 0;
+						}														
+					}
+				}
+			}			
+		}
+
+		function registerCourse(urlPage) 
+		{	
+			var classId1 = $('input:radio[name=classnbr1]:checked').val();
+			var classId2 = "";
+			var classId3 = "";			
+			var courseCode = $("#courseCodehid").val();
+			var courseType = $("#courseTypehid").val();
+			var courseId = $("#courseIdhid").val();
+			var clashSlot = $('#clashSlots1').val() + ",";			
+			var chkflg = 1;
+			var courseOption = "";
+			var subCourseOption = "";
+			var subCourseType = "";
+			var subCourseDate = "";
+			var courseFlg = $('#courseFlag').val();
+			var searchVal =  $('#searchVal').val();
+			var searchType =$('#searchType').val();
+			var epjSlotFlag = $('#epjSlotFlag').val();
+			var compName = "";
+			
+			var clArr = [];			
+			$("input[name='courseType']").each(function() 
+			{	
+				clArr.push($(this).val());	
+				
+				/* if ($(this).val() == 'ETH')
+				{
+					compName = "Embedded Theory";	
+				}				
+				else if ($(this).val() == 'TH')
+				{
+					compName = "Theory";	
+				}
+				else if ($(this).val() == 'EPJ')
+				{
+					compName = "Embedded Project";	
+				}
+				else if ($(this).val() == 'ELA')
+				{
+					compName = "Embedded Lab";	
+				}
+				else if ($(this).val() == 'LO')
+				{
+					compName = "Lab";	
+				}
+				else if ($(this).val() == 'SS')
+				{
+					compName = "Soft Skill";	
+				} */
+				
+				if ($(this).val() == 'LTP')
+				{
+					compName = "Lecture-Tutorial-Practical";	
+				}
+				else if ($(this).val() == 'LT')
+				{
+					compName = "Lecture-Tutorial";	
+				}
+				else if ($(this).val() == 'LP')
+				{
+					compName = "Lecture-Practical";	
+				}
+				else if ($(this).val() == 'P')
+				{
+					compName = "Practical";	
+				}
+				else if ($(this).val() == 'PJ')
+				{
+					compName = "Project";	
+				}
+				
+				//if (($(this).val() == 'ETH') || ($(this).val() == 'TH') || ($(this).val() == 'SS') || ($(this).val() == 'LO'))
+				if (($(this).val() == 'LTP') || ($(this).val() == 'LP') || ($(this).val() == 'LT') || ($(this).val() == 'P'))
+				{
+					
+					if (document.getElementById("classnbr1")!=null)
+					{					
+						if ($('input[name=classnbr1]:checked').length <= 0) 
+						{
+							chkflg = 0;						
+							
+							swal({
+						    	title: compName + " Component is required",			    	
+						    	confirmButtonColor: '#3085d6'
+							},
+							
+							function(button) 
+							{			
+							    if (button == true) 
+							    {
+							    	window.setTimeout(function ()
+							    	{
+							    		
+							    	}, 0);		    			    	
+							    }
+							});
+						}
+					}
+					else
+					{
+						chkflg = 0;						
+						swal({
+					    	title: compName + " Component Seat(s) are full. So, you cannot register with this component",			    	
+					    	confirmButtonColor: '#3085d6'
+						},
+						
+						function(button) 
+						{			
+						    if (button == true) 
+						    {
+						    	window.setTimeout(function ()
+						    	{
+						    		
+						    	}, 0);		    			    	
+						    }
+						});
+					}
+				}
+				
+				
+				if ($(this).val() == 'ELA')
+				{
+					if (chkflg == 1) 
+					{						
+						if (document.getElementById("classnbr2")!=null)
+						{
+							if ($('input[name=classnbr2]:checked').length <= 0) 
+							{						
+								chkflg = 0;
+								
+								swal({
+							    	title: "Select the required " + compName + " Component",			    	
+							    	confirmButtonColor: '#3085d6'
+								},
+								
+								function(button) 
+								{			
+								    if (button == true) 
+								    {
+								    	window.setTimeout(function ()
+								    	{
+								    		
+								    	}, 0);		    			    	
+								    }
+								});
+							}
+						}
+						else
+						{
+							chkflg = 0;
+							
+							swal({
+						    	title: compName + " Component Seat(s) Are Full, Please Select any other slot",			    	
+						    	confirmButtonColor: '#3085d6'
+							},
+							
+							function(button) 
+							{			
+							    if (button == true) 
+							    {
+							    	window.setTimeout(function ()
+							    	{
+							    		
+							    	}, 0);		    			    	
+							    }
+							});	
+						}
+					}
+					classId2 = $('input:radio[name=classnbr2]:checked').val();
+					clashSlot = clashSlot + $('#clashSlots2').val();					
+				}				
+				
+				if ($(this).val() == 'EPJ')
+				{
+					if ((epjSlotFlag==1) && (chkflg == 1)) 
+					{	
+						if (document.getElementById("classnbr3")!=null)
+						{
+							if ($('input[name=classnbr3]:checked').length <= 0) 
+							{								
+								chkflg = 0;
+								swal({
+							    	title: "Select the required "+ compName + " Component",			    	
+							    	confirmButtonColor: '#3085d6'
+								},
+								
+								function(button) 
+								{			
+								    if (button == true) 
+								    {
+								    	window.setTimeout(function ()
+								    	{
+								    		
+								    	}, 0);		    			    	
+								    }
+								});
+							}								
+						}
+						else
+						{
+							chkflg = 0;
+							
+							swal({
+						    	title: compName + " Component Seat(s) Are Full, Please Select any other slot",			    	
+						    	confirmButtonColor: '#3085d6'
+							},
+							
+							function(button) 
+							{			
+							    if (button == true) 
+							    {
+							    	window.setTimeout(function ()
+							    	{
+							    		
+							    	}, 0);		    			    	
+							    }
+							});
+						}
+						classId3 = $('input:radio[name=classnbr3]:checked').val();
+						clashSlot = clashSlot + $('#clashSlots3').val();							
+					}
+					
+					else
+					{					
+						classId3 = $('#classnbr3').val();						
+					}					
+				}
+			});
+					
+
+			if (courseFlg == 1) 
+			{			
+				if (chkflg == 1) 
+				{					
+					if ($('input[name=CourseOption]:checked').length <= 0) 
+					{
+						chkflg = 0;
+						swal({
+					    	title: "Select the course option",			    	
+					    	confirmButtonColor: '#3085d6'
+						},
+					
+						function(button) 
+						{			
+						    if (button == true) 
+						    {
+						    	window.setTimeout(function ()
+						    	{
+						    		
+						    	}, 0);		    			    	
+						    }
+						});
+					} 
+					else 
+					{						
+						
+						courseOption =  $('input[name=CourseOption]:checked').val();						
+					
+						if ((courseOption == 'CS') || (courseOption == 'HON') || (courseOption == 'MIN'))
+						{
+							var crschkfg = 2;
+							var subCourseOption = document.getElementsByName("subCourseOption");
+							for (var i = 0; i < subCourseOption.length; i++) 
+							{
+								if (subCourseOption[i].selectedIndex !=0)
+								{
+									var crschkfg = 1;
+									var d2 = subCourseOption[i].value;							
+								}	
+							}
+							
+							if (crschkfg == 2)
+							{
+								chkflg = 0;
+								swal({
+							    	title: "Select the Sub Course option",			    	
+							    	confirmButtonColor: '#3085d6'
+								},
+							
+								function(button) 
+								{			
+								    if (button == true) 
+								    {
+								    	window.setTimeout(function ()
+								    	{
+								    		
+								    	}, 0);		    			    	
+								    }
+								});
+							}
+							else
+							{
+								subCourseOption = d2;								
+							}
+						}	
+					}					
+				}
+			}
+			
+			if (courseFlg == 2) 
+			{				
+				courseOption =  $("#CourseOption").val();
+				subCourseOption = $("#subCourseOption").val();				
+			}
+			
+			if (courseFlg == 3) 
+			{
+				courseOption = $("#CourseOption").val();
+				subCourseOption = $("#subCourseOption").val();
+				subCourseType = $("#subCourseType").val();
+				subCourseDate = $("#subCourseDate").val();
+			}
+			
+						
+			var classIdVal = classId1 + "," + classId2 + "," + classId3;					
+			var dataParameter = "ClassID=" + classIdVal + 
+									"&courseId=" + courseId +
+									"&courseType=" + courseType +
+									"&courseCode=" + courseCode +
+									"&courseOption=" + courseOption	+ 
+									"&clashSlot=" + clashSlot +
+									"&pageSize=5&page="	+ $('#page').val() + 
+									"&subCourseOption=" + subCourseOption + 
+									"&subCourseType=" + subCourseType +
+									"&subCourseDate=" + subCourseDate +
+									"&searchType= " + searchType +
+						 			"&searchVal=" +  searchVal +
+						 			"&clArr="+ clArr + 
+						 			"&epjSlotFlag="+ epjSlotFlag;
+						
+			if (chkflg == 1) 
+			{
+				$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+				
+				$.ajax({
+					url : urlPage,
+					type : "POST",
+					data : dataParameter,
+																	
+					success : function(response) 
+					{
+						$('#page-wrapper').html(response);
+						$.unblockUI();
+						
+						viewCredits();
+					}
+				});
+			} 
+		}
+		
+		function viewCredits() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "ViewCredits",
+				type : "POST",
+			
+				success : function(response) 
+				{
+					$('#creditsFragment').html(response);
+					$.unblockUI();
+				}
+			});
+		}	
+
+		function goBack() 
+		{
+			var params = "&pageSize=5&page="+ $('#page').val() +"&searchType="+ $('#searchType').val() 
+								+"&searchVal="+ $('#searchVal').val() +"&flag=0";			
+
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processRegistrationOption",
+				type : "POST",
+				data : params,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}
+		
+		function getSchoolWiseGuide() 
+		{
+			var guideSchoolOpt = $('#guideSchoolWise :selected').val();			
+			var dataParameter = "guideSchoolOpt=" + guideSchoolOpt;
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "getSchoolWiseGuideList",
+				type : "POST",
+				data : dataParameter,													
+				success : function(response) 
+				{	
+					$('#ProjectGuideFragment').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}		
+
+		/************COURSE REGISTRATION*****************/
+
+		/************DELETE CONFIRMATION*****************/
+
+		function processDeleteOTPCourseRegistration(courseId) 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processDeleteCourseRegistrationOTP",
+				type : "POST",
+				data : "courseId=" + courseId,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+		
+		function processDeleteConfirmationCourseRegistration(courseId) 
+		{
+			d = document.DeleteConfirmation;
+			var checkFlag = 2;
+			
+			if ((d.mailOTP.value.length<5) || (d.mailOTP.value.charAt(0)==" ")) 
+			{
+				d.mailOTP.select();
+				d.mailOTP.focus();
+				checkFlag = 2;
+				swal("Enter E-Mail OTP & it should be 5 charaters.");
+			}
+			else
+			{
+				checkFlag = 1;
+			}
+			
+			if (parseInt(checkFlag) == 1)
+			{
+				var mailOTP = $("#mailOTP").val();
+				var param = "courseId=" + courseId +"&mailOTP="+ mailOTP;
+			
+				$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+				
+				$.ajax({
+					url : "processDeleteConfirmationCourseRegistration",
+					type : "POST",
+					data : param,
+					success : function(response) 
+					{
+						$('#page-wrapper').html(response);
+						$.unblockUI();
+						
+						viewCredits();
+					}				
+				});
+			}
+		}
+
+		function processDeleteConfirmationCourseRegistrationRirect() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processDeleteConfirmationCourseRegistrationRirect",
+				type : "POST",
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+
+		/************DELETE CONFIRMATION*****************/
+
+		/************DELETE CONFIRMATION WAITING*****************/
+		function processDeleteConfirmationCourseRegistrationWaiting(courseId) 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processDeleteConfirmationCourseRegistrationWaiting",
+				type : "POST",
+				data : "courseId=" + courseId,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+
+		function processDeleteConfirmationCourseRegistrationWaitingRirect() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processDeleteConfirmationCourseRegistrationWaitingRirect",
+				type : "POST",
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+
+		/************DELETE CONFIRMATION WAITING*****************/
+
+		/************DELETE COURSE*****************/
+		function processDeleteCourseRegistration(courseId) 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processDeleteCourseRegistration",
+				type : "POST",
+				data : "courseId=" + courseId,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+
+		function processDeleteCourseRegistrationWaiting(courseId) 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processDeleteCourseRegistrationWaiting",
+				type : "POST",
+				data : "courseId=" + courseId,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+
+		/************DELETE COURSE*****************/
+
+		/************MODIFY EDIT*****************/
+		function UpdateSlots(oldClassId) 
+		{
+			var chkflg = 1;
+			var courseOption1 = "";
+			
+			if ($('input[name=courseOption]:checked').length <= 0) 
+			{
+				chkflg = 0;				
+				swal({
+			    	title: "Select the option",			    	
+			    	confirmButtonColor: '#3085d6'
+				},
+			
+				function(button) 
+				{			
+				    if (button == true) 
+				    {
+				    	window.setTimeout(function ()
+				    	{
+				    		
+				    	}, 0);		    			    	
+				    }
+				});				
+			}
+			
+			if (parseInt(chkflg) == 1) 
+			{
+				d = document.ModifySlot;
+							
+				if ((d.mailOTP.value.length<5) || (d.mailOTP.value.charAt(0)==" ")) 
+				{
+					d.mailOTP.select();
+					d.mailOTP.focus();
+					chkflg = 2;
+					swal("Enter E-Mail OTP & it should be 5 charaters.");
+				}
+				else
+				{
+					chkflg = 1;
+				}
+			}
+						
+			if (parseInt(chkflg) == 1) 
+			{
+				var mailOTP = $("#mailOTP").val();
+				var dataParameter = "newCourseDetail="+ $('input:radio[name=courseOption]:checked').val() 
+										+"&oldClassId=" + oldClassId +"&mailOTP="+ mailOTP;
+				
+				$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+				
+				$.ajax({
+					url : "UpdateRegisteredSlots",
+					type : "POST",
+					data : dataParameter,
+					success : function(response) 
+					{
+						$('#page-wrapper').html(response);
+						$.unblockUI();
+						
+						viewCredits();
+					}
+				});
+			}
+		}
+
+		function goModifyPage() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "modifySlots",
+				type : "POST",																
+				success : function(response) 
+				{					
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}		
+		
+		function viewFFCStoCal() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processFFCStoCal",
+				type : "POST",
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}
+
+		/************MODIFY EDIT*****************/
+
+		/************VIEW SLOTS*****************/
+		function ViewSlotsBack() 
+		{
+			var searchVal =  $('#searchVal').val();
+			var searchType =$('#searchType').val();			
+			var params = "pageSize=5&page="+ $('#page').val() +"&searchType="+ searchType 
+							+"&searchVal="+  searchVal +"&flag=0";
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processRegistrationOption",
+				type : "POST",
+				data : params,												
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}
+		
+		function viewCorrespondingCourse(courseId, erpId, genericCourseType, classId, page) 
+		{
+			var param = "courseId="+ courseId +"&erpId="+ erpId +"&genericCourseType="+ 
+							genericCourseType +"&classId="+ classId +"&page="+ page;
+			
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "viewCorrespondingCourse",
+				type : "POST",
+				data : param,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}				
+			});
+		}
+		
+		function callViewSlots(courseId, page, searchType, searchVal)
+		{
+			page = $("#pageNo").val();
+			var param = "courseId="+ courseId +"&page="+ page +"&searchType="+ searchType 
+								+"&searchVal="+ searchVal;
+						
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "processViewSlots",
+				type : "POST",
+				data : param,
+				success : function(response) 
+				{		
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}	
+				
+			});
+		}
+		
+		function modifySlots() 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "modifySlots",
+				type : "POST",
+				cache : false,
+				processData : false,
+				contentType : false,													
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}
+		
+		function editRegisteredSlots(courseId) 
+		{
+			$.blockUI({message : '<img src="assets/img/482.GIF"> loading... Just a moment...'});
+			
+			$.ajax({
+				url : "editRegisteredSlots",
+				type : "POST",
+				data : "courseId=" + courseId,
+				success : function(response) 
+				{
+					$('#page-wrapper').html(response);
+					$.unblockUI();
+					
+					viewCredits();
+				}
+			});
+		}
+		
+		
+		var currenttime = $('#currentDateTime').val();// '6/28/2017 6:27:21 PM';
+		var montharray = new Array("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
+		var serverdate = new Date(currenttime);
+
+		function padlength(what)
+		{
+			var output = (what.toString().length==1)? "0"+what : what;
+			return output;
+		}
+
+		function displaytime()
+		{
+			serverdate.setSeconds(serverdate.getSeconds()+1);
+			var datestring = padlength(serverdate.getDate()) +"-"+ montharray[serverdate.getMonth()] +"-"+ serverdate.getFullYear();
+			var timestring = padlength(serverdate.getHours())+":"+padlength(serverdate.getMinutes())+":"+padlength(serverdate.getSeconds());
+			document.getElementById("servertime").innerHTML = datestring+" "+timestring;
+		}
+
+
+		/************VIEW SLOTS*****************/
+
+		/*]]>*/
+	</script>
+
+
+
+<div class="sweet-overlay" tabindex="-1" style="opacity: -0.02; display: none;"></div><div class="sweet-alert hideSweetAlert" data-custom-class="" data-has-cancel-button="false" data-has-confirm-button="true" data-allow-outside-click="false" data-has-done-function="true" data-animation="pop" data-timer="null" style="display: none; margin-top: -157px; opacity: -0.02;"><div class="sa-icon sa-error" style="display: none;">
+      <span class="sa-x-mark">
+        <span class="sa-line sa-left"></span>
+        <span class="sa-line sa-right"></span>
+      </span>
+    </div><div class="sa-icon sa-warning" style="display: none;">
+      <span class="sa-body"></span>
+      <span class="sa-dot"></span>
+    </div><div class="sa-icon sa-info" style="display: block;"></div><div class="sa-icon sa-success" style="display: none;">
+      <span class="sa-line sa-tip"></span>
+      <span class="sa-line sa-long"></span>
+
+      <div class="sa-placeholder"></div>
+      <div class="sa-fix"></div>
+    </div><div class="sa-icon sa-custom" style="display: none;"></div><h2>Course Not Available/ Allotted</h2>
+    <p></p>
+    <fieldset>
+      <input type="text" tabindex="3" placeholder="">
+      <div class="sa-input-error"></div>
+    </fieldset><div class="sa-error-container">
+      <div class="icon">!</div>
+      <p>Not valid!</p>
+    </div><div class="sa-button-container">
+      <button class="cancel" tabindex="2" style="display: none;">Cancel</button>
+      <div class="sa-confirm-button-container">
+        <button class="confirm" tabindex="1" style="display: inline-block; background-color: rgb(48, 133, 214); box-shadow: rgba(48, 133, 214, 0.8) 0px 0px 2px, rgba(0, 0, 0, 0.05) 0px 0px 0px 1px inset;">OK</button><div class="la-ball-fall">
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+      </div>
+    </div></div></body></html>

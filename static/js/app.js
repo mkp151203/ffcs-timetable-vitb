@@ -440,9 +440,19 @@ async function loadRegisteredCoursesList() {
         ` : '';
 
         listDiv.innerHTML = `
+            <div class="bulk-actions-bar">
+                <label class="select-all-reg-label">
+                    <input type="checkbox" id="selectAllRegistrations" onchange="toggleAllRegistrations()">
+                    Select All
+                </label>
+                <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn" onclick="bulkDeleteRegistrations()" disabled>
+                    <i class="fas fa-trash"></i> Remove Selected (<span id="selectedRegCount">0</span>)
+                </button>
+            </div>
             <table class="registered-courses-table">
                 <thead>
                     <tr>
+                        <th></th>
                         <th></th>
                         <th>Course Code</th>
                         <th>Course Name</th>
@@ -459,6 +469,7 @@ async function loadRegisteredCoursesList() {
             const color = courseColors[courseCode] || '#90EE90';
             return `
                         <tr>
+                            <td><input type="checkbox" class="reg-checkbox" value="${reg.id}" onchange="updateBulkDeleteState()"></td>
                             <td><span class="row-color-indicator" style="background-color: ${color};"></span></td>
                             <td><strong>${courseCode}</strong></td>
                             <td>${reg.slot?.course?.name || 'N/A'}</td>
@@ -485,6 +496,52 @@ async function loadRegisteredCoursesList() {
 
     } catch (error) {
         console.error('Error loading registrations:', error);
+    }
+}
+
+function toggleAllRegistrations() {
+    const checked = document.getElementById('selectAllRegistrations').checked;
+    document.querySelectorAll('.reg-checkbox').forEach(cb => cb.checked = checked);
+    updateBulkDeleteState();
+}
+
+function updateBulkDeleteState() {
+    const selectedCount = document.querySelectorAll('.reg-checkbox:checked').length;
+    const countSpan = document.getElementById('selectedRegCount');
+    const bulkBtn = document.getElementById('bulkDeleteBtn');
+
+    if (countSpan) countSpan.textContent = selectedCount;
+    if (bulkBtn) bulkBtn.disabled = selectedCount === 0;
+}
+
+async function bulkDeleteRegistrations() {
+    const selectedIds = Array.from(
+        document.querySelectorAll('.reg-checkbox:checked')
+    ).map(cb => cb.value);
+
+    if (selectedIds.length === 0) return;
+
+    if (!confirm(`Remove ${selectedIds.length} registration(s)? This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/registration/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ registration_ids: selectedIds })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete registrations'));
+        }
+    } catch (error) {
+        console.error('Bulk delete error:', error);
+        alert('Error removing registrations.');
     }
 }
 
@@ -1040,3 +1097,794 @@ async function downloadTimetablePDF() {
         if (btn) btn.style.display = 'inline-flex';
     }
 }
+
+// ==================== Auto Generate Timetable ====================
+
+function switchGenerateTab(tabName) {
+    generateActiveTab = tabName;
+
+    // Update tab styles
+    document.querySelectorAll('.pref-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.pref-tab[data-tab="${tabName}"]`).classList.add('active');
+
+    // Show content
+    document.querySelectorAll('.pref-tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`prefTabContent-${tabName}`).classList.add('active');
+
+    // Special handling
+    if (tabName === 'custom') {
+        populateTeacherPreferences();
+    }
+}
+
+async function populateTeacherPreferences() {
+    const list = document.getElementById('teacherPreferencesList');
+    // Only populate if empty or dirty check needed? 
+    // Always repopulate based on currently selected courses
+
+    // Get selected courses
+    const selectedIds = Array.from(
+        document.querySelectorAll('#courseSelectionList input[type="checkbox"]:checked')
+    ).map(cb => cb.value);
+
+    if (selectedIds.length === 0) {
+        list.innerHTML = '<div class="loading-text">Please select courses in Step 1 first.</div>';
+        return;
+    }
+
+    const selectedCourses = generateAvailableCourses.filter(c => selectedIds.includes(String(c.id)));
+
+    if (selectedCourses.length === 0) {
+        list.innerHTML = '<div class="loading-text">No courses selected.</div>';
+        return;
+    }
+
+    let html = '';
+
+    selectedCourses.forEach(course => {
+        // Find faculties for this course
+        // We need to know which faculties teach THIS course. 
+        // generateAvailableCourses data structure already has 'faculties' list!
+
+        let facultyOptions = '<option value="">-- No Preference --</option>';
+        if (course.faculties && course.faculties.length > 0) {
+            course.faculties.forEach(f => {
+                facultyOptions += `<option value="${f}">${f}</option>`;
+            });
+        }
+
+        html += `
+            <div class="teacher-pref-item" data-course-id="${course.id}">
+                <div class="teacher-course-header">
+                    <span>${course.code} - ${course.name}</span>
+                    <span style="font-size:12px; font-weight:normal; color:#666;">${course.faculties.length} Faculty Options</span>
+                </div>
+                <div class="teacher-rank-row">
+                    <div class="rank-select-group">
+                        <label>1st Choice (+50)</label>
+                        <select class="rank-select rank-1">${facultyOptions}</select>
+                    </div>
+                    <div class="rank-select-group">
+                        <label>2nd Choice (+30)</label>
+                        <select class="rank-select rank-2">${facultyOptions}</select>
+                    </div>
+                    <div class="rank-select-group">
+                        <label>3rd Choice (+15)</label>
+                        <select class="rank-select rank-3">${facultyOptions}</select>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    list.innerHTML = html;
+}
+
+let generateCurrentStep = 1;
+let generateAvailableCourses = [];
+let generateAllFaculties = [];
+let generateSelectedCourseIds = [];
+let generateSuggestions = [];
+let generateCurrentOffset = 0;
+let generatePreferences = {};
+let currentPreviewIndex = -1;  // Track currently previewed suggestion (-1 = none)
+let generateActiveTab = 'time'; // 'time', 'teacher', 'random'
+
+function openGenerateModal() {
+    document.getElementById('generateModal').classList.add('active');
+    generateCurrentStep = 1;
+    generateSuggestions = [];
+    generateCurrentOffset = 0;
+    updateGenerateStepUI();
+    loadAvailableCoursesForGeneration();
+    // Default to Custom tab (Unified)
+    switchGenerateTab('custom');
+    // Clear teacher prefs list to force reload when needed
+    document.getElementById('teacherPreferencesList').innerHTML = '<div class="loading-text"><i class="fas fa-spinner fa-spin"></i> Preparing faculty list...</div>';
+}
+
+function closeGenerateModal() {
+    document.getElementById('generateModal').classList.remove('active');
+    generateCurrentStep = 1;
+    generateSelectedCourseIds = [];
+    generateSuggestions = [];
+}
+
+function updateGenerateStepUI() {
+    // Update step indicators
+    document.querySelectorAll('.generate-steps .step').forEach((el, i) => {
+        el.classList.remove('active', 'completed');
+        if (i + 1 < generateCurrentStep) el.classList.add('completed');
+        if (i + 1 === generateCurrentStep) el.classList.add('active');
+    });
+
+    // Show/hide step content
+    document.querySelectorAll('.generate-step-content').forEach((el, i) => {
+        el.classList.toggle('active', i + 1 === generateCurrentStep);
+    });
+
+    // Update navigation buttons
+    const prevBtn = document.getElementById('generatePrevBtn');
+    const nextBtn = document.getElementById('generateNextBtn');
+    const genBtn = document.getElementById('generateBtn');
+
+    prevBtn.style.display = generateCurrentStep > 1 ? 'inline-flex' : 'none';
+    nextBtn.style.display = generateCurrentStep < 2 ? 'inline-flex' : 'none';
+    genBtn.style.display = generateCurrentStep === 2 ? 'inline-flex' : 'none';
+}
+
+function prevGenerateStep() {
+    if (generateCurrentStep > 1) {
+        generateCurrentStep--;
+        updateGenerateStepUI();
+    }
+}
+
+function nextGenerateStep() {
+    if (generateCurrentStep === 1) {
+        // Validate course selection - keep IDs as strings to avoid precision loss
+        generateSelectedCourseIds = Array.from(
+            document.querySelectorAll('#courseSelectionList input[type="checkbox"]:checked')
+        ).map(cb => cb.value);  // Keep as string, don't parseInt
+
+        if (generateSelectedCourseIds.length === 0) {
+            alert('Please select at least one course.');
+            return;
+        }
+
+        generateCurrentStep = 2;
+        updateGenerateStepUI();
+
+        // If Custom tab is active, we need to populate/refresh the teacher preferences 
+        // because they depend on the courses selected in Step 1.
+        if (generateActiveTab === 'custom') {
+            populateTeacherPreferences();
+        }
+    }
+}
+
+async function loadAvailableCoursesForGeneration() {
+    const listDiv = document.getElementById('courseSelectionList');
+    listDiv.innerHTML = '<p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading courses...</p>';
+
+    try {
+        const response = await fetch('/api/generate/available');
+        const data = await response.json();
+
+        if (!response.ok) {
+            listDiv.innerHTML = `<p class="loading-text">Error: ${data.error}</p>`;
+            return;
+        }
+
+        generateAvailableCourses = data.courses;
+        generateAllFaculties = data.all_faculties;
+
+        if (generateAvailableCourses.length === 0) {
+            listDiv.innerHTML = '<p class="loading-text">No courses imported yet. Please upload HTML files first.</p>';
+            return;
+        }
+
+        // Render course list
+        listDiv.innerHTML = generateAvailableCourses.map(course => `
+            <div class="course-select-item ${course.is_registered ? 'registered' : ''}">
+                <input type="checkbox" value="${course.id}" 
+                    ${course.is_registered ? 'disabled' : ''} 
+                    onchange="updateGenerateCredits()">
+                <div class="course-select-info">
+                    <span class="course-select-code">${course.code}</span>
+                    <span class="course-select-name">${course.name}</span>
+                    ${course.is_registered ? '<span class="badge-registered">(Already registered)</span>' : ''}
+                </div>
+                <span class="course-select-credits">${course.credits} cr</span>
+            </div>
+        `).join('');
+
+        // Populate faculty selects - Obsolete in new design
+        // populateFacultySelects();
+
+        updateGenerateCredits();
+
+    } catch (error) {
+        console.error('Error loading courses:', error);
+        listDiv.innerHTML = '<p class="loading-text">Error loading courses.</p>';
+    }
+}
+
+// Obsolete function removed
+/*
+function populateFacultySelects() {
+    const prefSelect = document.getElementById('preferredFaculties');
+    const avoidSelect = document.getElementById('avoidedFaculties');
+
+    const options = generateAllFaculties.map(f => `<option value="${f}">${f}</option>`).join('');
+
+    prefSelect.innerHTML = options;
+    avoidSelect.innerHTML = options;
+}
+*/
+
+function toggleAllCoursesGenerate() {
+    const checked = document.getElementById('selectAllCoursesGenerate').checked;
+    document.querySelectorAll('#courseSelectionList input[type="checkbox"]:not(:disabled)')
+        .forEach(cb => cb.checked = checked);
+    updateGenerateCredits();
+}
+
+function updateGenerateCredits() {
+    const selectedIds = Array.from(
+        document.querySelectorAll('#courseSelectionList input[type="checkbox"]:checked')
+    ).map(cb => cb.value);  // Keep as string
+
+    let totalCredits = 0;
+    selectedIds.forEach(id => {
+        // Compare as strings since course.id is now a string
+        const course = generateAvailableCourses.find(c => c.id === id || String(c.id) === id);
+        if (course) totalCredits += course.credits;
+    });
+
+    const display = document.getElementById('selectedCreditsDisplay');
+    if (display) {
+        display.textContent = `${totalCredits} credits selected`;
+        display.style.color = totalCredits > 27 ? '#e74c3c' : (totalCredits < 16 ? '#f39c12' : '#27ae60');
+    }
+}
+
+async function generateTimetable() {
+    // Collect preferences based on Active Tab
+    const avoidEarly = document.getElementById('prefAvoidEarlyMorning').checked;
+    const avoidLate = document.getElementById('prefAvoidLateEvening').checked;
+
+    generatePreferences = {
+        avoid_early_morning: avoidEarly,
+        avoid_late_evening: avoidLate,
+        time_mode: 'none',
+        course_faculty_preferences: {}
+    };
+
+    // If Random tab is active, we ignore specific prefs (except maybe avoids? User said "very random"...)
+    // Actually, user said "for random generate 100 very random".
+    if (generateActiveTab === 'random') {
+        // Keep defaults (none/empty), maybe clear avoids too?
+        // "generate 100 very random timetables" usually implies no constraints.
+        // But if user explicitly checked 'Avoid' in the other tab, should we respect it?
+        // UI hides them in Random tab (removed in step 953). So effectively unchecked defaults?
+        // Wait, checkboxes are in Time tab only now.
+        // Let's reset avoids for Random mode to be purely random.
+        generatePreferences.avoid_early_morning = false;
+        generatePreferences.avoid_late_evening = false;
+        generatePreferences.time_mode = 'none';
+
+    } else {
+        // For Time OR Teacher tab, we collect BOTH to allow "Comprehensive Scoring".
+
+        // 1. Collect Time Mode
+        const modeEls = document.getElementsByName('timeMode');
+        let selectedMode = 'none';
+        modeEls.forEach(el => { if (el.checked) selectedMode = el.value; });
+        generatePreferences.time_mode = selectedMode;
+
+        // 2. Collect Teacher Ranks
+        const prefs = {};
+        document.querySelectorAll('.teacher-pref-item').forEach(item => {
+            const courseId = item.dataset.courseId;
+            const rank1 = item.querySelector('.rank-1').value;
+            const rank2 = item.querySelector('.rank-2').value;
+            const rank3 = item.querySelector('.rank-3').value;
+
+            const list = [];
+            if (rank1) list.push(rank1);
+            if (rank2 && !list.includes(rank2)) list.push(rank2);
+            if (rank3 && !list.includes(rank3)) list.push(rank3);
+
+            if (list.length > 0) {
+                prefs[courseId] = list; // { course_id: ['FacA', 'FacB'] }
+            }
+        });
+        generatePreferences.course_faculty_preferences = prefs;
+    }
+
+    generateCurrentStep = 3;
+    generateCurrentOffset = 0;
+    generateSuggestions = [];
+    updateGenerateStepUI();
+
+    const statusDiv = document.getElementById('generationStatus');
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating timetables...';
+    document.getElementById('suggestionsList').innerHTML = '';
+    document.getElementById('loadMoreContainer').style.display = 'none';
+
+    console.log('Sending preferences:', generatePreferences);  // DEBUG
+
+    try {
+        const response = await fetch('/api/generate/suggest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_ids: generateSelectedCourseIds,
+                preferences: generatePreferences,
+                limit: 100  // User requested "first 100 results"
+            })
+        });
+
+        const data = await response.json();
+        console.log('Generate suggest response:', JSON.stringify(data, null, 2));  // DEBUG
+
+        if (!response.ok) {
+            console.error('Generate error debug:', JSON.stringify(data.debug, null, 2));  // DEBUG
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Error: ${data.error}`;
+            return;
+        }
+
+        generateSuggestions = data.suggestions;
+        generateCurrentOffset = generateSuggestions.length;
+
+        if (generateSuggestions.length === 0) {
+            statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> No valid combinations found. Try removing some courses.';
+        } else {
+            let msg = `<i class="fas fa-check-circle"></i> Found ${generateSuggestions.length} timetable option(s).`;
+            if (data.relaxed_constraints) {
+                msg += ' <span style="color: #e67e22; font-size: 0.9em;"><br><i class="fas fa-exclamation-triangle"></i> Strict time constraints relaxed to find matches.</span>';
+            }
+            statusDiv.innerHTML = msg;
+
+            renderSuggestions();
+            // Similar endpoint doesn't support offset loading
+        }
+
+    } catch (error) {
+        console.error('Generation error:', error);
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error generating timetables.';
+    }
+}
+
+async function countTimetables() {
+    const countBox = document.getElementById('timetableCountBox');
+    const countText = document.getElementById('timetableCountText');
+    const countMode = document.getElementById('countMode') ? document.getElementById('countMode').value : 'distinct';
+
+    // Must update selected IDs first because button is in Step 1
+    generateSelectedCourseIds = Array.from(
+        document.querySelectorAll('#courseSelectionList input[type="checkbox"]:checked')
+    ).map(cb => cb.value);
+
+    if (generateSelectedCourseIds.length === 0) {
+        alert('Please select at least one course first.');
+        return;
+    }
+
+    countBox.classList.remove('zero');
+    countBox.classList.add('loading');
+    countText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Counting...';
+
+    // Get current preferences (minimal for count)
+    const preferences = {
+        avoid_early_morning: document.getElementById('prefAvoidEarlyMorning') ? document.getElementById('prefAvoidEarlyMorning').checked : false,
+        avoid_late_evening: document.getElementById('prefAvoidLateEvening') ? document.getElementById('prefAvoidLateEvening').checked : false,
+        // Other prefs might affect count if hard constraints, but for now mostly basic
+    };
+
+    try {
+        const response = await fetch('/api/generate/count', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_ids: generateSelectedCourseIds,
+                preferences: preferences,
+                mode: countMode
+            })
+        });
+
+        const data = await response.json();
+        console.log('Count response debug:', data.debug);  // DEBUG
+        countBox.classList.remove('loading');
+
+        if (response.ok) {
+            const count = data.count;
+            const capped = data.capped;
+
+            if (count === 0) {
+                countBox.classList.add('zero');
+                countText.innerHTML = '<span class="count-number">0</span> valid patterns. Try removing courses.';
+            } else if (capped) {
+                countText.innerHTML = `<span class="count-number">${count}+</span> valid patterns available!`;
+            } else {
+                countText.innerHTML = `<span class="count-number">${count}</span> valid patterns available`;
+            }
+        } else {
+            countText.innerHTML = 'Error: ' + (data.error || 'Unknown error');
+        }
+
+    } catch (error) {
+        console.error('Count error:', error);
+        countBox.classList.remove('loading');
+        countText.innerHTML = 'Error counting timetables';
+    }
+}
+
+async function loadMoreSuggestions() {
+    const btn = document.querySelector('#loadMoreContainer button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+    try {
+        const response = await fetch('/api/generate/more', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_ids: generateSelectedCourseIds,
+                preferences: generatePreferences,
+                offset: generateCurrentOffset
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.suggestions.length > 0) {
+            generateSuggestions = generateSuggestions.concat(data.suggestions);
+            generateCurrentOffset += data.suggestions.length;
+            renderSuggestions();
+
+            if (!data.has_more) {
+                document.getElementById('loadMoreContainer').style.display = 'none';
+            }
+
+            document.getElementById('generationStatus').innerHTML =
+                `<i class="fas fa-check-circle"></i> Found ${generateSuggestions.length} timetable option(s)`;
+        } else {
+            document.getElementById('loadMoreContainer').style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Load more error:', error);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus"></i> Load More Suggestions';
+    }
+}
+
+function renderSuggestions() {
+    const listDiv = document.getElementById('suggestionsList');
+
+    listDiv.innerHTML = generateSuggestions.map((suggestion, index) => `
+        <div class="suggestion-card" onclick="previewSuggestion(${index})">
+            <div class="suggestion-header">
+                <span class="suggestion-rank">#${index + 1}</span>
+                <span class="suggestion-score">Score: ${suggestion.score}</span>
+            </div>
+            <div class="suggestion-slots">
+                ${suggestion.slots.map(s => `
+                    <span class="suggestion-slot-tag">
+                        ${s.course_code}: ${s.slot_code}
+                    </span>
+                `).join('')}
+            </div>
+            <div class="suggestion-details">
+                <strong>${suggestion.total_credits} credits</strong> | 
+                ${suggestion.details.preferred_faculty_matches || 0} preferred faculty | 
+                ${suggestion.details.saturday_classes || 0} Saturday classes
+            </div>
+            <div class="suggestion-actions">
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); generateSimilar(${index})" title="Find variations of this timetable">
+                    <i class="fas fa-copy"></i> More Like This
+                </button>
+                <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); applySuggestion(${index})">
+                    <i class="fas fa-check"></i> Apply
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function generateSimilar(index) {
+    const suggestion = generateSuggestions[index];
+    if (!suggestion) return;
+
+    const statusDiv = document.getElementById('generationStatus');
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding similar timetables...';
+
+    const referenceSlotIds = suggestion.slots.map(s => s.slot_id);
+
+    try {
+        const response = await fetch('/api/generate/similar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_ids: generateSelectedCourseIds,
+                reference_slot_ids: referenceSlotIds,
+                preferences: generatePreferences
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Error: ${data.error}`;
+            return;
+        }
+
+        if (data.suggestions.length === 0) {
+            statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> No similar variations found. This timetable might be unique!';
+            return;
+        }
+
+        // Add new suggestions (avoiding duplicates)
+        const existingIds = new Set(generateSuggestions.map(s =>
+            s.slots.map(sl => sl.slot_id).sort().join(',')
+        ));
+
+        let addedCount = 0;
+        data.suggestions.forEach(newSugg => {
+            const newId = newSugg.slots.map(sl => sl.slot_id).sort().join(',');
+            if (!existingIds.has(newId)) {
+                generateSuggestions.push(newSugg);
+                existingIds.add(newId);
+                addedCount++;
+            }
+        });
+
+        statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> Found ${addedCount} similar variations! Total: ${generateSuggestions.length} options`;
+        renderSuggestions();
+
+        // Preview the first new one
+        if (addedCount > 0) {
+            previewSuggestion(generateSuggestions.length - addedCount);
+        }
+
+    } catch (error) {
+        console.error('Similar generation error:', error);
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error finding similar timetables.';
+    }
+}
+
+function previewSuggestion(index) {
+    const suggestion = generateSuggestions[index];
+    if (!suggestion) return;
+
+    currentPreviewIndex = index;
+
+    // Highlight the active card in the suggestions list
+    document.querySelectorAll('.suggestion-card').forEach((card, i) => {
+        if (i === index) {
+            card.classList.add('active-preview');
+        } else {
+            card.classList.remove('active-preview');
+        }
+    });
+
+    // Render mini timetable preview
+    renderMiniTimetable(suggestion);
+
+    // Show preview indicator
+    const statusDiv = document.getElementById('generationStatus');
+    if (statusDiv) {
+        statusDiv.innerHTML = `<i class="fas fa-eye"></i> Previewing Option #${index + 1} of ${generateSuggestions.length} | Use ← → to navigate | Press Enter to apply`;
+    }
+}
+
+function renderMiniTimetable(suggestion) {
+    const container = document.getElementById('miniTimetablePreview');
+    if (!container) return;
+
+    // Define the grid structure
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const periods = [
+        { num: 1, time: '8:30-10:00' },
+        { num: 2, time: '10:05-11:35' },
+        { num: 3, time: '11:40-13:10' },
+        { num: 4, time: '13:15-14:45' },
+        { num: 5, time: '14:50-16:20' },
+        { num: 6, time: '16:25-17:55' },
+        { num: 7, time: '18:00-19:30' }
+    ];
+
+    // Map slot codes to their day/period
+    const slotTimings = {
+        'A11': { day: 'MON', period: 1 }, 'B11': { day: 'MON', period: 2 }, 'C11': { day: 'MON', period: 3 },
+        'A21': { day: 'MON', period: 4 }, 'A14': { day: 'MON', period: 5 }, 'B21': { day: 'MON', period: 6 }, 'C21': { day: 'MON', period: 7 },
+        'D11': { day: 'TUE', period: 1 }, 'E11': { day: 'TUE', period: 2 }, 'F11': { day: 'TUE', period: 3 },
+        'D21': { day: 'TUE', period: 4 }, 'E14': { day: 'TUE', period: 5 }, 'E21': { day: 'TUE', period: 6 }, 'F21': { day: 'TUE', period: 7 },
+        'A12': { day: 'WED', period: 1 }, 'B12': { day: 'WED', period: 2 }, 'C12': { day: 'WED', period: 3 },
+        'A22': { day: 'WED', period: 4 }, 'B14': { day: 'WED', period: 5 }, 'B22': { day: 'WED', period: 6 }, 'A24': { day: 'WED', period: 7 },
+        'D12': { day: 'THU', period: 1 }, 'E12': { day: 'THU', period: 2 }, 'F12': { day: 'THU', period: 3 },
+        'D22': { day: 'THU', period: 4 }, 'F14': { day: 'THU', period: 5 }, 'E22': { day: 'THU', period: 6 }, 'F22': { day: 'THU', period: 7 },
+        'A13': { day: 'FRI', period: 1 }, 'B13': { day: 'FRI', period: 2 }, 'C13': { day: 'FRI', period: 3 },
+        'A23': { day: 'FRI', period: 4 }, 'C14': { day: 'FRI', period: 5 }, 'B23': { day: 'FRI', period: 6 }, 'B24': { day: 'FRI', period: 7 },
+        'D13': { day: 'SAT', period: 1 }, 'E13': { day: 'SAT', period: 2 }, 'F13': { day: 'SAT', period: 3 },
+        'D23': { day: 'SAT', period: 4 }, 'D14': { day: 'SAT', period: 5 }, 'D24': { day: 'SAT', period: 6 }, 'E23': { day: 'SAT', period: 7 }
+    };
+
+    // Build grid data from suggestion slots
+    const grid = {};
+    days.forEach(d => {
+        grid[d] = {};
+        periods.forEach(p => grid[d][p.num] = null);
+    });
+
+    suggestion.slots.forEach(slotInfo => {
+        const slotCodes = slotInfo.slot_code.replace(/\//g, '+').split('+');
+        slotCodes.forEach(code => {
+            const timing = slotTimings[code];
+            if (timing) {
+                grid[timing.day][timing.period] = {
+                    code: slotInfo.course_code,
+                    venue: slotInfo.venue || ''
+                };
+            }
+        });
+    });
+
+    // Generate HTML - Days as rows, Times as columns
+    let html = '<table class="mini-timetable"><thead><tr><th class="day-header">Day</th>';
+    periods.forEach(p => html += `<th class="time-col">${p.time}</th>`);
+    html += '</tr></thead><tbody>';
+
+    days.forEach(d => {
+        html += `<tr><td class="day-header">${d}</td>`;
+        periods.forEach(p => {
+            const cell = grid[d][p.num];
+            if (cell) {
+                html += `<td class="slot-filled" title="${cell.code} - ${cell.venue}">${cell.code}</td>`;
+            } else {
+                html += '<td class="slot-empty"></td>';
+            }
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    html += `<div class="preview-info">
+        <span class="credits-badge">${suggestion.total_credits} Credits</span>
+        <span style="margin-left: 10px;">Score: ${suggestion.score}</span>
+    </div>`;
+
+    container.innerHTML = html;
+}
+
+function clearPreview() {
+    currentPreviewIndex = -1;
+    document.querySelectorAll('.slot-cell.preview-highlight').forEach(el => {
+        el.classList.remove('preview-highlight');
+        el.innerHTML = '';
+    });
+    document.querySelectorAll('.suggestion-card.active-preview').forEach(el => {
+        el.classList.remove('active-preview');
+    });
+}
+
+function navigatePreview(direction) {
+    if (generateSuggestions.length === 0) return;
+
+    let newIndex = currentPreviewIndex + direction;
+
+    // Wrap around
+    if (newIndex < 0) newIndex = generateSuggestions.length - 1;
+    if (newIndex >= generateSuggestions.length) newIndex = 0;
+
+    previewSuggestion(newIndex);
+
+    // Scroll the active card into view
+    const activeCard = document.querySelector('.suggestion-card.active-preview');
+    if (activeCard) {
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Arrow key and Enter navigation for previews
+document.addEventListener('keydown', function (e) {
+    // Only handle keys when generate modal is open and we're on step 3 (results)
+    const modal = document.getElementById('generateModal');
+    if (!modal || !modal.classList.contains('active') || generateCurrentStep !== 3) {
+        return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigatePreview(-1);
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigatePreview(1);
+    } else if (e.key === 'Enter' && currentPreviewIndex >= 0) {
+        e.preventDefault();
+        applySuggestion(currentPreviewIndex);
+    } else if (e.key === 'Escape') {
+        clearPreview();
+    }
+});
+
+async function applySuggestion(index) {
+    const suggestion = generateSuggestions[index];
+    if (!suggestion) return;
+
+    if (!confirm('Apply this timetable? This will replace your current registrations.')) {
+        return;
+    }
+
+    const slotIds = suggestion.slots.map(s => s.slot_id);
+
+    try {
+        const response = await fetch('/api/generate/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slot_ids: slotIds })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(`Success! Registered ${data.registration_count} courses.`);
+            closeGenerateModal();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+
+    } catch (error) {
+        console.error('Apply error:', error);
+        alert('Error applying timetable.');
+    }
+}
+
+// Add CSS for preview highlight
+const previewStyle = document.createElement('style');
+previewStyle.textContent = `
+    .slot-cell.preview-highlight {
+        background-color: rgba(46, 204, 113, 0.4) !important;
+        border: 2px dashed #27ae60 !important;
+        animation: pulse-preview 1s infinite;
+    }
+    @keyframes pulse-preview {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    .preview-slot-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        padding: 2px;
+        font-size: 11px;
+        color: #1a5f3c;
+    }
+    .preview-slot-content strong {
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .preview-slot-content small {
+        font-size: 9px;
+        opacity: 0.8;
+    }
+    .suggestion-card.active-preview {
+        border: 3px solid #27ae60 !important;
+        background-color: rgba(46, 204, 113, 0.15) !important;
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+    .badge-registered {
+        font-size: 11px;
+        color: #27ae60;
+        font-style: italic;
+    }
+`;
+document.head.appendChild(previewStyle);
+
