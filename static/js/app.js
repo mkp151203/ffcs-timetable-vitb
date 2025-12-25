@@ -31,6 +31,14 @@ function initializeApp() {
 
     // Load registered courses list
     loadRegisteredCoursesList();
+
+    // Check for tab parameter (e.g. from View Saved button)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'saved') {
+        if (typeof switchGenerateTab === 'function' && document.getElementById('savedView')) {
+            switchGenerateTab('saved');
+        }
+    }
 }
 
 // ==================== Course Search ====================
@@ -1103,14 +1111,7 @@ async function downloadTimetablePDF() {
 
 // ==================== Auto Generate Timetable ====================
 
-function switchGenerateTab(tabName) {
-    // Tabs removed - no longer needed
-    // Just ensure preferences tab is always active
-    generateActiveTab = 'custom';
-
-    // Populate teacher preferences when modal opens
-    populateTeacherPreferences();
-}
+// switchGenerateTab function moved to Saved Timetables Features section
 
 async function populateTeacherPreferences() {
     const list = document.getElementById('teacherPreferencesList');
@@ -1550,16 +1551,10 @@ function renderSuggestions() {
     renderCurrentCard();
 }
 
-function renderCurrentCard() {
-    const listDiv = document.getElementById('suggestionsList');
-    const counterDiv = document.getElementById('cardCounter');
-
-    if (currentPreviewIndex < 0 || currentPreviewIndex >= generateSuggestions.length) {
-        return;
-    }
-
-    const index = currentPreviewIndex;
-    const suggestion = generateSuggestions[index];
+// Helper to render a suggestion card into a container
+function renderSuggestionCard(suggestion, index, targetId, options = {}) {
+    const listDiv = document.getElementById(targetId);
+    if (!listDiv) return;
 
     // Color palette matching main.py
     const COURSE_COLORS = [
@@ -1579,7 +1574,7 @@ function renderCurrentCard() {
         }
     });
 
-    // Build slot lines: color box + course_code: teacher(slot)
+    // Build slot lines
     const slotLines = suggestion.slots.map(s => {
         const teacherName = s.faculty_name || 'TBA';
         const color = courseColors[s.course_code] || '#eee';
@@ -1589,13 +1584,28 @@ function renderCurrentCard() {
         </div>`;
     }).join('');
 
-    // Get preferred teacher count from details
+    // Get preferred teacher count
     const prefCount = suggestion.details?.teacher_match_count ?? suggestion.details?.preferred_faculty_matches ?? 0;
 
+    // Actions
+    let actionsHtml = '';
+    if (options.showActions) {
+        actionsHtml = `
+            <div class="suggestion-actions">
+                <button class="btn btn-secondary" style="margin-right: 5px;" onclick="saveSuggestion(${index})">
+                    <i class="fas fa-bookmark"></i> Save
+                </button>
+                <button class="btn btn-success" onclick="applySuggestion(${index})">
+                    <i class="fas fa-check"></i> Apply This Timetable
+                </button>
+            </div>
+         `;
+    }
+
     listDiv.innerHTML = `
-        <div class="suggestion-card">
+        <div class="suggestion-card ${options.active ? 'active-preview' : ''}" style="${options.style || ''}">
             <div class="suggestion-header">
-                <span class="suggestion-rank">#${index + 1}</span>
+                <span class="suggestion-rank">${options.title || '#' + (index + 1)}</span>
                 <span class="suggestion-score">${suggestion.total_credits} cr</span>
             </div>
             <div class="suggestion-slots-list">
@@ -1605,13 +1615,27 @@ function renderCurrentCard() {
             <div class="suggestion-pref-count">
                 <i class="fas fa-star"></i> ${prefCount} preferred teachers
             </div>
-            <div class="suggestion-actions">
-                <button class="btn btn-success" onclick="applySuggestion(${index})">
-                    <i class="fas fa-check"></i> Apply This Timetable
-                </button>
-            </div>
+            ${actionsHtml}
         </div>
     `;
+
+    return courseColors;
+}
+
+function renderCurrentCard() {
+    const counterDiv = document.getElementById('cardCounter');
+
+    if (currentPreviewIndex < 0 || currentPreviewIndex >= generateSuggestions.length) {
+        return;
+    }
+
+    const index = currentPreviewIndex;
+    const suggestion = generateSuggestions[index];
+
+    // Render using helper
+    const courseColors = renderSuggestionCard(suggestion, index, 'suggestionsList', {
+        showActions: true
+    });
 
     // Update counter
     if (counterDiv) {
@@ -1649,8 +1673,8 @@ function previewSuggestion(index) {
     }
 }
 
-function renderMiniTimetable(suggestion, courseColors = {}) {
-    const container = document.getElementById('miniTimetablePreview');
+function renderMiniTimetable(suggestion, courseColors = {}, targetId = 'miniTimetablePreview') {
+    const container = document.getElementById(targetId);
     if (!container) return;
 
     // Define the grid structure with lunch
@@ -1773,12 +1797,28 @@ function navigatePreview(direction) {
 
 // Arrow key and Enter navigation for previews
 document.addEventListener('keydown', function (e) {
-    // Only handle keys when we're on step 3 (results) - works for both modal and page
+    // Check if we're on the generate page or modal is open
     const onGeneratePage = document.querySelector('.generate-page-main') !== null;
     const modal = document.getElementById('generateModal');
     const modalOpen = modal && modal.classList.contains('active');
 
-    // Must be on generate page OR modal open, and on step 3
+    // Check if saved view is active
+    const savedView = document.getElementById('savedView');
+    const isSavedTabActive = savedView && savedView.style.display !== 'none';
+
+    // Handle saved configurations tab navigation
+    if ((onGeneratePage || modalOpen) && isSavedTabActive && savedTimetablesList.length > 0) {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            prevSavedTimetable();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            nextSavedTimetable();
+        }
+        return;
+    }
+
+    // Must be on generate page OR modal open, and on step 3 for generator tab
     if (!onGeneratePage && !modalOpen) {
         return;
     }
@@ -1877,3 +1917,1158 @@ previewStyle.textContent = `
 `;
 document.head.appendChild(previewStyle);
 
+
+// --- Saved Timetables Features ---
+
+function switchGenerateTab(tabName) {
+    // Update tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    // Update views
+    document.getElementById('generatorView').style.display = (tabName === 'generator') ? 'block' : 'none';
+    document.getElementById('savedView').style.display = (tabName === 'saved') ? 'block' : 'none';
+
+    if (tabName === 'saved') {
+        loadSavedTimetables();
+    }
+}
+
+function saveSuggestion(index) {
+    const suggestion = generateSuggestions[index];
+    if (!suggestion) return;
+
+    // Prompt for name (optional)
+    const name = prompt("Enter a name for this configuration:", `Option #${index + 1} (${suggestion.total_credits} cr)`);
+    if (!name) return; // User cancelled
+
+    const slotIds = suggestion.slots.map(s => s.slot_id);
+
+    fetch('/api/generate/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: name,
+            slot_ids: slotIds,
+            total_credits: suggestion.total_credits,
+            course_count: suggestion.slots.length
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Timetable configuration saved successfully!');
+            } else {
+                alert('Error saving timetable: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Save error:', err);
+            alert('Failed to save timetable.');
+        });
+}
+
+// Saved Timetables State
+let savedTimetablesList = [];
+let currentSavedIndex = 0;
+
+function loadSavedTimetables() {
+    const statusDiv = document.getElementById('savedGenerationStatus');
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading saved configurations...';
+
+    fetch('/api/generate/saved')
+        .then(r => r.json())
+        .then(data => {
+            if (data.saved && data.saved.length > 0) {
+                savedTimetablesList = data.saved;
+                currentSavedIndex = 0;
+                statusDiv.innerHTML = `<i class="fas fa-check"></i> ${savedTimetablesList.length} saved timetable(s) found`;
+                renderCurrentSavedCard();
+            } else {
+                savedTimetablesList = [];
+                statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> No saved timetables yet. Save one from the Generator tab!';
+                document.getElementById('savedMiniTimetable').innerHTML = `
+                    <div class="preview-placeholder">
+                        <i class="fas fa-bookmark"></i>
+                        <p>No saved timetables yet</p>
+                    </div>`;
+                document.getElementById('savedDetailsCard').innerHTML = '';
+                document.getElementById('savedCardCounter').innerHTML = '';
+            }
+        })
+        .catch(err => {
+            console.error('Load saved error:', err);
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading saved timetables';
+        });
+}
+
+function renderCurrentSavedCard() {
+    if (savedTimetablesList.length === 0) return;
+
+    const item = savedTimetablesList[currentSavedIndex];
+    const counterDiv = document.getElementById('savedCardCounter');
+    const detailsDiv = document.getElementById('savedDetailsCard');
+    const previewDiv = document.getElementById('savedMiniTimetable');
+
+    // Update counter
+    counterDiv.innerHTML = `<strong>${currentSavedIndex + 1}</strong> of <strong>${savedTimetablesList.length}</strong> saved timetables &nbsp;|&nbsp; Use ← → to navigate`;
+
+    // Show loading in preview
+    previewDiv.innerHTML = '<div class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading preview...</div>';
+
+    // Parse slot IDs
+    let slotIds = [];
+    try {
+        slotIds = typeof item.slot_ids === 'string' ? JSON.parse(item.slot_ids) : item.slot_ids;
+    } catch (e) {
+        console.error('Parse error:', e);
+        previewDiv.innerHTML = '<div class="error-text">Error loading saved data</div>';
+        return;
+    }
+
+    // Fetch slot details for preview
+    fetch('/api/generate/preview-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_ids: slotIds })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                previewDiv.innerHTML = `<div class="error-text">Error: ${data.error}</div>`;
+                return;
+            }
+
+            const suggestion = data.suggestion;
+
+            // Generate colors
+            const COURSE_COLORS = [
+                '#90EE90', '#87CEEB', '#FFB6C1', '#DDA0DD', '#F0E68C',
+                '#FF7F50', '#00CED1', '#FFE4B5', '#E6E6FA', '#FFDAB9',
+                '#DA70D6', '#FFA07A'
+            ];
+            const courseColors = {};
+            let colorIndex = 0;
+            suggestion.slots.forEach(slot => {
+                if (!courseColors[slot.course_code]) {
+                    courseColors[slot.course_code] = COURSE_COLORS[colorIndex % COURSE_COLORS.length];
+                    colorIndex++;
+                }
+            });
+
+            // Render preview grid
+            renderMiniTimetable(suggestion, courseColors, 'savedMiniTimetable');
+
+            // Render details card with actions
+            const slotLines = suggestion.slots.map(s => {
+                const color = courseColors[s.course_code] || '#eee';
+                return `<div class="suggestion-slot-line" style="display: flex; align-items: center;">
+                    <span style="display: inline-block; width: 12px; height: 12px; background-color: ${color}; border: 1px solid #999; margin-right: 8px;"></span>
+                    <span>${s.course_code}: ${s.faculty_name || 'TBA'} (${s.slot_code})</span>
+                </div>`;
+            }).join('');
+
+            detailsDiv.innerHTML = `
+                <div class="suggestion-card" style="border-color: #3498db; background: #f8ffff;">
+                    <div class="suggestion-header">
+                        <span class="suggestion-rank">${item.name}</span>
+                        <span class="suggestion-score">${suggestion.total_credits} cr</span>
+                    </div>
+                    <div class="suggestion-slots-list">${slotLines}</div>
+                    <div class="saved-meta" style="margin-top: 10px; font-size: 11px; color: #888;">
+                        Saved on ${new Date(item.created_at).toLocaleDateString()}
+                    </div>
+                    <div class="suggestion-actions" style="margin-top: 10px;">
+                        <button class="btn btn-danger btn-sm" onclick="deleteSavedTimetable('${item.id}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="btn btn-success" onclick="applySavedTimetable(${JSON.stringify(slotIds)})">
+                            <i class="fas fa-check"></i> Apply Timetable
+                        </button>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(err => {
+            console.error(err);
+            previewDiv.innerHTML = '<div class="error-text">Failed to load preview</div>';
+        });
+}
+
+function prevSavedTimetable() {
+    if (savedTimetablesList.length === 0) return;
+    currentSavedIndex = (currentSavedIndex - 1 + savedTimetablesList.length) % savedTimetablesList.length;
+    renderCurrentSavedCard();
+}
+
+function nextSavedTimetable() {
+    if (savedTimetablesList.length === 0) return;
+    currentSavedIndex = (currentSavedIndex + 1) % savedTimetablesList.length;
+    renderCurrentSavedCard();
+}
+
+async function deleteSavedTimetable(id) {
+    if (!confirm('Are you sure you want to delete this saved timetable?')) return;
+
+    try {
+        const resp = await fetch(`/api/generate/saved/${id}`, { method: 'DELETE' });
+        const data = await resp.json();
+
+        if (resp.ok && (data.success || !data.error)) {
+            // Updated Logic: Handle both Generator Page (Carousel) and Modal (Index Page)
+
+            const savedViewActive = document.getElementById('savedView') && document.getElementById('savedView').style.display !== 'none';
+            const modalActive = document.getElementById('savedTimetablesModal') && document.getElementById('savedTimetablesModal').classList.contains('active');
+
+            // 1. If we are managing a local list (Generator Page Context)
+            if (typeof savedTimetablesList !== 'undefined' && Array.isArray(savedTimetablesList)) {
+                // Remove from local array
+                savedTimetablesList = savedTimetablesList.filter(item => String(item.id) !== String(id));
+
+                // If we are currently viewing the generator saved tab, refresh the view
+                if (savedViewActive || document.getElementById('savedView')) {
+                    if (savedTimetablesList.length === 0) {
+                        // Reload fully if empty to show placeholder states
+                        if (typeof loadSavedTimetables === 'function') loadSavedTimetables();
+                    } else {
+                        // Adjust index if needed
+                        if (currentSavedIndex >= savedTimetablesList.length) {
+                            currentSavedIndex = savedTimetablesList.length - 1;
+                        }
+                        // Re-render
+                        if (typeof renderCurrentSavedCard === 'function') renderCurrentSavedCard();
+
+                        const statusDiv = document.getElementById('savedGenerationStatus');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `<i class="fas fa-check"></i> ${savedTimetablesList.length} saved timetable(s) remaining`;
+                        }
+                    }
+                }
+            }
+
+            // 2. If the Modal is open (or we are in a context where the modal list exists) - Index Page Context
+            // The modal uses `loadSavedTimetablesList()` which fetches freshly from server.
+            // We only need to call it if the function exists and the container exists.
+            if (typeof loadSavedTimetablesList === 'function' && document.getElementById('savedTimetablesModalContent')) {
+                loadSavedTimetablesList();
+            }
+
+        } else {
+            alert('Error deleting: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Error deleting timetable');
+    }
+}
+
+function applySavedTimetable(slotIds) {
+    if (!confirm('Apply this timetable? This will replace your current registration.')) return;
+
+    // Handle potential string slots or already parsed array
+    let slots = slotIds;
+    if (typeof slotIds === 'string') {
+        try {
+            slots = JSON.parse(slotIds);
+        } catch (e) {
+            console.error("Error parsing slots for apply:", e);
+            alert("Error applying: Invalid slot data");
+            return;
+        }
+    }
+
+    fetch('/api/generate/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_ids: slots })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Timetable applied successfully!');
+                window.location.href = '/'; // Go to home to see it
+            } else {
+                alert('Error applying timetable: ' + data.error);
+            }
+        })
+        .catch(err => alert('Apply failed: ' + err));
+}
+
+
+
+function previewSavedTimetable(item) {
+    const container = document.getElementById('savedMiniTimetable');
+
+    // Highlight active card
+    document.querySelectorAll('.saved-card').forEach(c => c.classList.remove('active-preview'));
+    const card = document.getElementById(`saved-${item.id}`);
+    if (card) card.classList.add('active-preview');
+
+    container.innerHTML = '<div class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading details...</div>';
+
+    // Parse slot IDs if string
+    let slotIds = [];
+    try {
+        if (typeof item.slot_ids === 'string') {
+            slotIds = JSON.parse(item.slot_ids);
+        } else if (Array.isArray(item.slot_ids)) {
+            slotIds = item.slot_ids;
+        }
+    } catch (e) {
+        console.error("Error parsing slot_ids:", e);
+        container.innerHTML = '<div class="error-text">Error processing saved data.</div>';
+        return;
+    }
+
+    // Scroll to top to see preview
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Fetch details
+    fetch('/api/generate/preview-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_ids: slotIds })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                container.innerHTML = `<div class="error-text">Error: ${data.error}</div>`;
+                return;
+            }
+
+            const suggestion = data.suggestion;
+
+            // Generate colors locally
+            const COURSE_COLORS = [
+                '#90EE90', '#87CEEB', '#FFB6C1', '#DDA0DD', '#F0E68C',
+                '#FF7F50', '#00CED1', '#FFE4B5', '#E6E6FA', '#FFDAB9',
+                '#DA70D6', '#FFA07A'
+            ];
+            const courseColors = {};
+            let colorIndex = 0;
+
+            suggestion.slots.forEach(slot => {
+                if (!courseColors[slot.course_code]) {
+                    courseColors[slot.course_code] = COURSE_COLORS[colorIndex % COURSE_COLORS.length];
+                    colorIndex++;
+                }
+            });
+
+            // Render into the new container
+            const returnedColors = renderMiniTimetable(suggestion, courseColors, 'savedMiniTimetable');
+
+            // Render details card
+            renderSuggestionCard(suggestion, -1, 'savedDetailsCard', {
+                title: item.name || 'Saved Timetable',
+                showActions: false, // Actions are already on the card below
+                style: 'border-color: #3498db; background: #f8ffff;'
+            });
+
+            // Add Apply button below preview? 
+            // Or just let the user use the Apply button on the card.
+            // The user said "open same as preview page". Preview page has apply buttons on cards.
+            // So no need for extra apply button here.
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = '<div class="error-text">Failed to load preview details.</div>';
+        });
+}
+
+// ==================== HTML Import Modal ====================
+
+function openHtmlImportModal() {
+    document.getElementById('htmlImportModal').classList.add('active');
+    // Reset state
+    document.getElementById('htmlFileInput').value = '';
+    document.getElementById('selectedFileName').textContent = '';
+    document.getElementById('uploadStatus').innerHTML = '';
+    document.getElementById('importBtn').disabled = true;
+}
+
+function closeHtmlImportModal() {
+    document.getElementById('htmlImportModal').classList.remove('active');
+}
+
+let selectedCsvFile = null;
+
+function openCsvUploadModal() {
+    document.getElementById('csvUploadModal').classList.add('active');
+    // Reset state
+    selectedCsvFile = null;
+    document.getElementById('csvFileInput').value = '';
+    document.getElementById('csvFileName').textContent = '';
+    document.getElementById('csvUploadStatus').innerHTML = '';
+    document.getElementById('csvImportBtn').disabled = true;
+}
+
+function closeCsvUploadModal() {
+    document.getElementById('csvUploadModal').classList.remove('active');
+    selectedCsvFile = null;
+}
+
+// Set up CSV file input listener
+document.addEventListener('DOMContentLoaded', function () {
+    const csvInput = document.getElementById('csvFileInput');
+    if (csvInput) {
+        csvInput.addEventListener('change', handleCsvFileSelect);
+    }
+});
+
+function handleCsvFileSelect(event) {
+    const file = event.target.files[0];
+    const fileNameSpan = document.getElementById('csvFileName');
+    const importBtn = document.getElementById('csvImportBtn');
+    const statusDiv = document.getElementById('csvUploadStatus');
+
+    if (file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-times"></i> Please select a CSV file.</div>';
+            importBtn.disabled = true;
+            return;
+        }
+
+        selectedCsvFile = file;
+        fileNameSpan.textContent = file.name;
+        importBtn.disabled = false;
+        statusDiv.innerHTML = '<div class="import-success-item"><i class="fas fa-check"></i> File ready for import.</div>';
+    } else {
+        selectedCsvFile = null;
+        fileNameSpan.textContent = '';
+        importBtn.disabled = true;
+    }
+}
+
+async function importCsvFile() {
+    if (!selectedCsvFile) {
+        alert('Please select a CSV file first.');
+        return;
+    }
+
+    const statusDiv = document.getElementById('csvUploadStatus');
+    const importBtn = document.getElementById('csvImportBtn');
+
+    importBtn.disabled = true;
+    statusDiv.innerHTML = '<div class="loading-spinner"></div> Importing course data...';
+
+    const formData = new FormData();
+    formData.append('files[]', selectedCsvFile);
+
+    try {
+        const response = await fetch('/api/upload/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            const result = data.results[0];
+
+            if (result.status === 'success') {
+                statusDiv.innerHTML = `
+                    <div class="import-success">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <strong>Course imported successfully!</strong><br>
+                            ${result.course_code} - ${result.slots_added} faculty/slot options added
+                        </div>
+                    </div>
+                `;
+
+                // Clear and reload after a delay
+                setTimeout(() => {
+                    closeCsvUploadModal();
+                    location.reload();
+                }, 1500);
+            } else {
+                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${result.message}</div>`;
+                importBtn.disabled = false;
+            }
+        } else {
+            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${data.error || 'Import failed'}</div>`;
+            importBtn.disabled = false;
+        }
+
+    } catch (error) {
+        console.error('CSV Import error:', error);
+        statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-times"></i> Error importing CSV file.</div>';
+        importBtn.disabled = false;
+    }
+}
+
+// ==================== OCR Import Modal ====================
+
+let ocrCurrentStep = 1;
+let ocrImages = [];
+let ocrExtractedData = [];
+let ocrImportMode = 'ai'; // 'ai', 'manual', 'edit'
+let currentEditingCourseId = null;
+
+
+function openOcrImportModal() {
+    ocrImportMode = 'ai';
+    document.querySelector('#ocrImportModal h2').innerHTML = '<i class="fas fa-robot"></i> AI-Assisted Course Import';
+
+    // Update UI for AI mode
+    document.getElementById('ocrStep2Label').textContent = 'AI Extract';
+    document.getElementById('ocrStep1NextBtn').innerHTML = 'Next: Upload Images <i class="fas fa-arrow-right"></i>';
+
+    document.getElementById('ocrImportModal').classList.add('active');
+    resetOcrModal();
+}
+
+function openManualImportModal() {
+    ocrImportMode = 'manual';
+    document.querySelector('#ocrImportModal h2').innerHTML = '<i class="fas fa-keyboard"></i> Manual Course Entry';
+
+    // Update UI for Manual mode
+    document.getElementById('ocrStep2Label').textContent = 'Manual Entry';
+    document.getElementById('ocrStep1NextBtn').innerHTML = 'Next: Enter Data <i class="fas fa-arrow-right"></i>';
+
+    document.getElementById('ocrImportModal').classList.add('active');
+    resetOcrModal();
+}
+
+function closeOcrImportModal() {
+    document.getElementById('ocrImportModal').classList.remove('active');
+    resetOcrModal();
+}
+
+function openModifyCoursesModal() {
+    const modal = document.getElementById('allCoursesModal');
+    const content = document.getElementById('allCoursesModalContent');
+
+    // Change modal title temporarily (or permanent if generic)
+    // We can assume the modal header is static "Select Course", but let's check index.html
+    // For now, I'll update the content title inside the list if possible or just use the existing modal
+
+    // Reusing All Courses Modal Logic but with Edit Actions
+    content.innerHTML = '<div class="loading-spinner"></div>';
+    modal.classList.add('active');
+
+    fetch('/api/courses/all')
+        .then(r => r.json())
+        .then(data => {
+            if (data.courses.length === 0) {
+                content.innerHTML = '<div class="no-results"><p>No courses found.</p></div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <h3>Select a Course to Modify</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Click 'Edit' to modify faculty and slots.</p>
+                </div>
+                <div style="max-height: 60vh; overflow-y: auto;">
+                <table class="registered-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Target</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.courses.map(course => `
+                            <tr>
+                                <td><strong>${course.code}</strong></td>
+                                <td>${course.name}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="loadCourseForEdit('${course.id}', '${course.code}', '${course.name}', ${course.l}, ${course.t}, ${course.p}, ${course.j}, ${course.c}, '${course.course_type}', '${course.category}')">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                </div>
+            `;
+        })
+        .catch(err => {
+            console.error(err);
+            content.innerHTML = '<p>Error loading courses.</p>';
+        });
+}
+
+async function loadCourseForEdit(id, code, name, l, t, p, j, c, type, cat) {
+    // Close selection modal
+    document.getElementById('allCoursesModal').classList.remove('active');
+
+    // Set Edit Mode
+    ocrImportMode = 'edit';
+    currentEditingCourseId = id;
+
+    // Pre-fill Step 1 Form (disabled or readonly? User might want to edit meta too? For now, allowing edit)
+    document.getElementById('ocrCourseCode').value = code;
+    document.getElementById('ocrCourseName').value = name;
+    document.getElementById('ocrL').value = l;
+    document.getElementById('ocrT').value = t;
+    document.getElementById('ocrP').value = p;
+    document.getElementById('ocrJ').value = j;
+    document.getElementById('ocrC').value = c;
+    document.getElementById('ocrCourseType').value = type;
+    document.getElementById('ocrCategory').value = cat;
+
+    // Fetch Slots
+    try {
+        const response = await fetch(`/api/courses/${id}/slots`);
+        const data = await response.json();
+
+        // Populate ocrExtractedData
+        ocrExtractedData = data.slots.map(s => ({
+            slot_code: s.slot_code,
+            venue: s.venue,
+            faculty: s.faculty_name || 'N/A',
+            available_seats: s.available_seats
+        }));
+
+        // Open Editor (Step 3)
+        document.getElementById('ocrImportModal').classList.add('active');
+        ocrCurrentStep = 3;
+        updateOcrStepUI();
+
+        // Update UI Text
+        document.querySelector('#ocrImportModal h2').innerHTML = '<i class="fas fa-edit"></i> Modify Course Details';
+        document.getElementById('ocrStep2Label').textContent = 'Data Loaded'; // Contextual label
+
+        const impBtn = document.getElementById('ocrImportBtn');
+        impBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+        impBtn.onclick = null; // Clear old listener to be safe, but we use mode check inside function
+        // Actually, better to rely on inside check or simple override
+        // logic below handles it
+
+        populateOcrReviewTable();
+
+    } catch (e) {
+        alert('Error loading course details');
+        console.error(e);
+    }
+}
+
+function resetOcrModal() {
+    ocrCurrentStep = 1;
+    ocrImages = [];
+    ocrExtractedData = [];
+
+    // Reset form
+    document.getElementById('ocrCourseCode').value = '';
+    document.getElementById('ocrCourseName').value = '';
+    document.getElementById('ocrCourseType').value = 'LTP';
+    document.getElementById('ocrCategory').value = 'PC';
+    document.getElementById('ocrL').value = '2';
+    document.getElementById('ocrT').value = '1';
+    document.getElementById('ocrP').value = '1';
+    document.getElementById('ocrJ').value = '0';
+    document.getElementById('ocrC').value = '4';
+
+    // Reset image previews
+    document.getElementById('ocrImagePreviews').innerHTML = '';
+    document.getElementById('ocrProcessBtn').disabled = true;
+    document.getElementById('ocrProgress').style.display = 'none';
+
+    // Reset review table
+    document.getElementById('ocrReviewBody').innerHTML = '';
+    document.getElementById('ocrReviewStatus').innerHTML = '';
+
+    updateOcrStepUI();
+}
+
+function updateOcrStepUI() {
+    // Update step indicators
+    document.querySelectorAll('.ocr-steps .ocr-step').forEach(step => {
+        const stepNum = parseInt(step.dataset.step);
+        step.classList.remove('active', 'completed');
+        if (stepNum < ocrCurrentStep) step.classList.add('completed');
+        if (stepNum === ocrCurrentStep) step.classList.add('active');
+    });
+
+    // Show/hide step content
+    document.querySelectorAll('.ocr-step-content').forEach((content, i) => {
+        content.classList.toggle('active', i + 1 === ocrCurrentStep);
+    });
+}
+
+function ocrNextStep(step) {
+    // Validate before proceeding
+    if (ocrCurrentStep === 1) {
+        const code = document.getElementById('ocrCourseCode').value.trim();
+        const name = document.getElementById('ocrCourseName').value.trim();
+        if (!code || !name) {
+            alert('Please enter Course Code and Course Name.');
+            return;
+        }
+
+        // If manual mode, skip step 2 and go straight to 3
+        if (ocrImportMode === 'manual') {
+            ocrCurrentStep = 3;
+            updateOcrStepUI();
+
+            // Initialize with an empty row if empty
+            const reviewBody = document.getElementById('ocrReviewBody');
+            if (reviewBody.children.length === 0 || reviewBody.innerText.includes('No data')) {
+                reviewBody.innerHTML = '';
+                ocrAddRow(); // Add first empty row
+            }
+            return;
+        }
+    }
+
+    ocrCurrentStep = step;
+    updateOcrStepUI();
+}
+
+function ocrPrevStep(step) {
+    // If manual mode and coming back from step 3, go to step 1
+    if (ocrImportMode === 'manual' && ocrCurrentStep === 3) {
+        ocrCurrentStep = 1;
+        updateOcrStepUI();
+        return;
+    }
+
+    ocrCurrentStep = step;
+    updateOcrStepUI();
+}
+
+// AI-based extraction replaces image upload - no OCR handlers needed
+
+// Copy AI prompt to clipboard
+// Copy AI prompt to clipboard
+function copyAiPrompt() {
+    const promptText = document.getElementById('aiPromptText').textContent;
+    const btn = event.target.closest('button');
+
+    // Helper to show success message
+    const showSuccess = () => {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+        }, 2000);
+    };
+
+    // Try modern Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(promptText).then(showSuccess).catch(err => {
+            console.warn('Clipboard API failed, trying fallback:', err);
+            fallbackCopy(promptText, showSuccess);
+        });
+    } else {
+        fallbackCopy(promptText, showSuccess);
+    }
+}
+
+function fallbackCopy(text, successCallback) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";  // Avoid scrolling to bottom
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            successCallback();
+        } else {
+            alert('Failed to copy. Please select and copy manually.');
+        }
+    } catch (err) {
+        console.error('Fallback copy error:', err);
+        alert('Failed to copy. Please select and copy manually.');
+    }
+
+    document.body.removeChild(textArea);
+}
+
+// Parse AI output (CSV format)
+function parseAiOutput() {
+    const textarea = document.getElementById('aiOutputText');
+    const statusDiv = document.getElementById('aiParseStatus');
+    const text = textarea.value.trim();
+
+    if (!text) {
+        statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-exclamation-circle"></i> Please paste the AI output first.</div>';
+        return;
+    }
+
+    const rows = [];
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    for (const line of lines) {
+        // Skip header line
+        if (line.toLowerCase().includes('slot_code') && line.toLowerCase().includes('venue')) continue;
+        if (line.toLowerCase().includes('faculty') && line.toLowerCase().includes('seats')) continue;
+
+        // Try to parse as CSV
+        const parts = line.split(',').map(p => p.trim());
+
+        if (parts.length >= 4) {
+            const slot = parts[0];
+            const venue = parts[1];
+            const faculty = parts[2];
+            const seats = parseInt(parts[3]) || 70;
+
+            // Validate slot format (should contain letter+number pattern)
+            if (/[A-Za-z]\d/.test(slot) && faculty.length >= 2) {
+                rows.push({
+                    slot_code: slot.toUpperCase(),
+                    venue: venue.toUpperCase(),
+                    faculty: faculty,
+                    available_seats: seats
+                });
+            }
+        }
+    }
+
+    if (rows.length === 0) {
+        statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-exclamation-circle"></i> Could not parse any valid rows. Make sure the AI output is in CSV format.</div>';
+        return;
+    }
+
+    // Store and move to review
+    ocrExtractedData = rows;
+    statusDiv.innerHTML = `<div class="import-success"><i class="fas fa-check-circle"></i> Parsed ${rows.length} faculty entries!</div>`;
+
+    setTimeout(() => {
+        populateOcrReviewTable();
+        ocrNextStep(3);
+    }, 500);
+}
+
+
+
+function populateOcrReviewTable() {
+    const tbody = document.getElementById('ocrReviewBody');
+
+    if (ocrExtractedData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">No data extracted. Please add rows manually or try different images.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = ocrExtractedData.map((row, i) => `
+        <tr data-index="${i}">
+            <td><input type="checkbox" class="ocr-row-select"></td>
+            <td><input type="text" value="${escapeHtml(row.slot_code)}" class="ocr-slot"></td>
+            <td><input type="text" value="${escapeHtml(row.venue)}" class="ocr-venue"></td>
+            <td><input type="text" value="${escapeHtml(row.faculty)}" class="ocr-faculty"></td>
+            <td><input type="number" value="${row.available_seats}" class="ocr-seats" min="0"></td>
+            <td><button class="delete-row-btn" onclick="ocrDeleteRow(this)"><i class="fas fa-trash"></i></button></td>
+        </tr>
+    `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function ocrAddRow() {
+    const tbody = document.getElementById('ocrReviewBody');
+    const newIndex = tbody.querySelectorAll('tr').length;
+
+    const row = document.createElement('tr');
+    row.dataset.index = newIndex;
+    row.innerHTML = `
+        <td><input type="checkbox" class="ocr-row-select"></td>
+        <td><input type="text" value="" class="ocr-slot" placeholder="e.g., A11+A12+A13"></td>
+        <td><input type="text" value="TBA" class="ocr-venue"></td>
+        <td><input type="text" value="" class="ocr-faculty" placeholder="Faculty Name"></td>
+        <td><input type="number" value="70" class="ocr-seats" min="0"></td>
+        <td><button class="delete-row-btn" onclick="ocrDeleteRow(this)"><i class="fas fa-trash"></i></button></td>
+    `;
+    tbody.appendChild(row);
+}
+
+function ocrDeleteRow(btn) {
+    btn.closest('tr').remove();
+}
+
+function ocrToggleSelectAll() {
+    const checked = document.getElementById('ocrSelectAll').checked;
+    document.querySelectorAll('.ocr-row-select').forEach(cb => cb.checked = checked);
+}
+
+function ocrDeleteSelectedRows() {
+    document.querySelectorAll('.ocr-row-select:checked').forEach(cb => {
+        cb.closest('tr').remove();
+    });
+    document.getElementById('ocrSelectAll').checked = false;
+}
+
+async function importOcrData() {
+    if (ocrImportMode === 'edit') {
+        saveCourseEdits();
+        return;
+    }
+
+    const statusDiv = document.getElementById('ocrReviewStatus');
+    const importBtn = document.getElementById('ocrImportBtn');
+
+    // Collect course data
+    const courseData = {
+        course_code: document.getElementById('ocrCourseCode').value.trim(),
+        course_name: document.getElementById('ocrCourseName').value.trim(),
+        l: parseInt(document.getElementById('ocrL').value) || 0,
+        t: parseInt(document.getElementById('ocrT').value) || 0,
+        p: parseInt(document.getElementById('ocrP').value) || 0,
+        j: parseInt(document.getElementById('ocrJ').value) || 0,
+        c: parseInt(document.getElementById('ocrC').value) || 0,
+        course_type: document.getElementById('ocrCourseType').value,
+        category: document.getElementById('ocrCategory').value
+    };
+
+    // Collect slot data from table
+    const rows = document.querySelectorAll('#ocrReviewBody tr');
+    const slots = [];
+
+    rows.forEach(row => {
+        const slot = row.querySelector('.ocr-slot')?.value.trim();
+        const venue = row.querySelector('.ocr-venue')?.value.trim() || 'TBA';
+        const faculty = row.querySelector('.ocr-faculty')?.value.trim();
+        const seats = parseInt(row.querySelector('.ocr-seats')?.value) || 70;
+
+        if (slot && faculty) {
+            slots.push({
+                slot_code: slot,
+                venue: venue,
+                faculty: faculty,
+                available_seats: seats
+            });
+        }
+    });
+
+    if (slots.length === 0) {
+        alert('Please add at least one valid slot entry.');
+        return;
+    }
+
+    importBtn.disabled = true;
+    statusDiv.innerHTML = '<div class="loading-spinner"></div> Importing course data...';
+
+    // Build CSV content
+    const csvLines = [
+        'course_code,course_name,l,t,p,j,c,course_type,category',
+        `${courseData.course_code},${courseData.course_name},${courseData.l},${courseData.t},${courseData.p},${courseData.j},${courseData.c},${courseData.course_type},${courseData.category}`,
+        'slot_code,faculty,venue,available_seats'
+    ];
+
+    slots.forEach(s => {
+        csvLines.push(`${s.slot_code},${s.faculty},${s.venue},${s.available_seats}`);
+    });
+
+    const csvContent = csvLines.join('\n');
+
+    // Create a blob and send as file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const formData = new FormData();
+    formData.append('files[]', blob, `${courseData.course_code}.csv`);
+
+    try {
+
+
+
+
+        const response = await fetch('/api/upload/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            const result = data.results[0];
+
+            if (result.status === 'success') {
+                statusDiv.innerHTML = `
+                    <div class="import-success">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <strong>Course imported successfully!</strong><br>
+                            ${result.course_code} - ${result.slots_added} faculty/slot options added
+                        </div>
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    closeOcrImportModal();
+                    location.reload();
+                }, 1500);
+            } else {
+                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${result.message}</div>`;
+                importBtn.disabled = false;
+            }
+        } else {
+            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${data.error || 'Import failed'}</div>`;
+            importBtn.disabled = false;
+        }
+
+    } catch (error) {
+        console.error('Import error:', error);
+        statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-times"></i> Error importing data.</div>';
+        importBtn.disabled = false;
+    }
+}
+
+async function saveCourseEdits() {
+    const statusDiv = document.getElementById('ocrReviewStatus');
+    const importBtn = document.getElementById('ocrImportBtn');
+
+    // Collect slot data
+    const rows = document.querySelectorAll('#ocrReviewBody tr');
+    const slots = [];
+
+    rows.forEach(row => {
+        const slot = row.querySelector('.ocr-slot')?.value.trim();
+        const venue = row.querySelector('.ocr-venue')?.value.trim() || 'TBA';
+        const faculty = row.querySelector('.ocr-faculty')?.value.trim();
+        const seats = parseInt(row.querySelector('.ocr-seats')?.value) || 70;
+
+        if (slot && faculty) {
+            slots.push({
+                slot_code: slot,
+                venue: venue,
+                faculty: faculty,
+                available_seats: seats
+            });
+        }
+    });
+
+    if (slots.length === 0 && !confirm('No slots defined. This will clear all slots for the course. Continue?')) {
+        return;
+    }
+
+    importBtn.disabled = true;
+    statusDiv.innerHTML = '<div class="loading-spinner"></div> Saving changes...';
+
+    try {
+        const response = await fetch(`/api/courses/${currentEditingCourseId}/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slots: slots })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            statusDiv.innerHTML = `<div class="import-success"><i class="fas fa-check"></i> ${data.message}</div>`;
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            statusDiv.innerHTML = `<div class="import-error-item">Error: ${data.error}</div>`;
+            importBtn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        statusDiv.innerHTML = `<div class="import-error-item">Error saving changes.</div>`;
+        importBtn.disabled = false;
+    }
+}
+
+// --- Timetable Saving & Viewing ---
+
+async function saveCurrentTimetable() {
+    try {
+        // Fetch current registrations
+        const regResp = await fetch('/api/registration/');
+        const regData = await regResp.json();
+
+        if (!regData.registrations || regData.registrations.length === 0) {
+            alert('Your timetable is empty! Register some courses before saving.');
+            return;
+        }
+
+        const slotIds = regData.registrations.map(r => r.slot.id);
+        const count = regData.count;
+        const credits = regData.total_credits;
+
+        // Prompt for name
+        let name = prompt("Enter a name for this timetable:", `My Timetable (${new Date().toLocaleDateString()})`);
+        if (name === null) return; // Cancelled
+        if (!name.trim()) name = "Untitled Timetable";
+
+        // Save
+        const saveResp = await fetch('/api/generate/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                slot_ids: slotIds,
+                total_credits: credits,
+                course_count: count
+            })
+        });
+
+        const data = await saveResp.json();
+        if (saveResp.ok) {
+            alert('Timetable saved successfully!');
+        } else {
+            alert(data.message || 'Error saving timetable');
+        }
+    } catch (err) {
+        console.error('Save error:', err);
+        alert('Failed to save timetable.');
+    }
+}
+
+function openSavedTimetablesModal() {
+    document.getElementById('savedTimetablesModal').classList.add('active');
+    loadSavedTimetablesList();
+}
+
+function closeSavedTimetablesModal() {
+    document.getElementById('savedTimetablesModal').classList.remove('active');
+}
+
+async function loadSavedTimetablesList() {
+    const container = document.getElementById('savedTimetablesModalContent');
+    if (!container) return; // Prevent error if modal is not present (e.g. on generator page)
+
+    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+    try {
+        const resp = await fetch('/api/generate/saved');
+        const data = await resp.json();
+
+        if (!data.saved || data.saved.length === 0) {
+            container.innerHTML = '<p class="empty-state">No saved timetables found.</p>';
+            return;
+        }
+
+        container.innerHTML = data.saved.map(item => `
+            <div class="saved-card">
+                <div class="saved-card-header">
+                    <h3>${item.name}</h3>
+                    <span class="saved-date">${new Date(item.created_at).toLocaleDateString()}</span>
+                </div>
+                <div class="saved-card-body">
+                    <p><i class="fas fa-book"></i> ${item.course_count} Courses</p>
+                    <p><i class="fas fa-star"></i> ${item.total_credits} Credits</p>
+                </div>
+                <div class="saved-card-actions">
+                    <button class="btn btn-sm btn-success" onclick='applySavedTimetable(${JSON.stringify(item.slot_ids)})'>
+                        <i class="fas fa-upload"></i> Load
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSavedTimetable('${item.id}')">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (err) {
+        console.error('List error:', err);
+        container.innerHTML = '<p class="error-msg">Error loading saved timetables.</p>';
+    }
+}
+
+// Duplicate deleteSavedTimetable removed. The unified version is defined earlier.

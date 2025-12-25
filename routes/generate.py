@@ -1,7 +1,7 @@
 """Routes for auto-generating timetable suggestions."""
 
 from flask import Blueprint, request, jsonify, session, render_template
-from models import db, Course, Slot, Faculty, Registration, User
+from models import db, Course, Slot, Faculty, Registration, User, SavedTimetable
 from utils.timetable_generator import TimetableGenerator, GenerationPreferences
 import uuid
 
@@ -445,3 +445,161 @@ def apply_suggestion():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@generate_bp.route('/preview-details', methods=['POST'])
+def get_preview_details():
+    """Get details for a list of slot IDs for previewing."""
+    user_id, guest_id = get_user_scope()
+    
+    if not user_id and not guest_id:
+        return jsonify({'error': 'No active session'}), 401
+        
+    data = request.get_json() or {}
+    slot_ids = data.get('slot_ids', [])
+    
+    if not slot_ids:
+        return jsonify({'slots': []})
+        
+    # Convert to ints
+    try:
+        slot_ids = [int(sid) for sid in slot_ids]
+    except:
+        return jsonify({'error': 'Invalid IDs'}), 400
+        
+    # Fetch slots with Course and Faculty
+    slots = Slot.query.filter(Slot.id.in_(slot_ids)).options(
+        db.joinedload(Slot.course),
+        db.joinedload(Slot.faculty)
+    ).all()
+    
+    # Format for renderMiniTimetable (needs code, venue, faculty, slot_code)
+    # The frontend expects a 'suggestion' object with 'slots' array.
+    # Each slot item needs: slot_id, slot_code, course_code, faculty_name, venue.
+    
+    slot_list = []
+    total_credits = 0
+    
+    for s in slots:
+        if s.course:
+            total_credits += s.course.c
+            
+        slot_list.append({
+            'slot_id': s.id,
+            'slot_code': s.slot_code,
+            'course_code': s.course.code if s.course else 'N/A',
+            'course_name': s.course.name if s.course else 'N/A',
+            'faculty_name': s.faculty.name if s.faculty else 'TBA',
+            'venue': s.venue,
+            'credits': s.course.c if s.course else 0
+        })
+        
+    return jsonify({
+        'suggestion': {
+            'slots': slot_list,
+            'total_credits': total_credits,
+            'details': {'teacher_match_count': 0} # Dummy
+        }
+    })
+
+
+@generate_bp.route('/save', methods=['POST'])
+def save_timetable():
+    """Save a timetable configuration."""
+    user_id, guest_id = get_user_scope()
+    
+    if not user_id and not guest_id:
+        return jsonify({'error': 'No active session'}), 401
+    
+    data = request.get_json() or {}
+    name = data.get('name', 'Saved Timetable')
+    slot_ids = data.get('slot_ids', [])
+    total_credits = data.get('total_credits', 0)
+    course_count = data.get('course_count', 0)
+    
+    if not slot_ids:
+        return jsonify({'error': 'No slots provided'}), 400
+        
+    try:
+        import json
+        # Sort IDs to ensure canonical representation for duplicate check
+        slot_ids.sort()
+        slot_ids_json = json.dumps(slot_ids)
+        
+        # Check for duplicates
+        query = SavedTimetable.query
+        if user_id:
+            query = query.filter_by(user_id=user_id)
+        else:
+            query = query.filter_by(guest_id=guest_id)
+            
+        existing = query.filter_by(slot_ids_json=slot_ids_json).first()
+        if existing:
+            return jsonify({'success': False, 'message': 'This timetable configuration is already saved!'}), 409
+
+        saved = SavedTimetable(
+            name=name,
+            slot_ids_json=slot_ids_json,
+            total_credits=total_credits,
+            course_count=course_count
+        )
+        
+        if user_id:
+            saved.user_id = user_id
+        else:
+            saved.guest_id = guest_id
+            
+        db.session.add(saved)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'saved_id': saved.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@generate_bp.route('/saved', methods=['GET'])
+def get_saved_timetables():
+    """Get all saved timetables for current user."""
+    user_id, guest_id = get_user_scope()
+    
+    if not user_id and not guest_id:
+        return jsonify({'error': 'No active session'}), 401
+        
+    query = SavedTimetable.query
+    if user_id:
+        query = query.filter_by(user_id=user_id)
+    else:
+        query = query.filter_by(guest_id=guest_id)
+        
+    saved_list = query.order_by(SavedTimetable.created_at.desc()).all()
+    
+    return jsonify({
+        'saved': [s.to_dict() for s in saved_list]
+    })
+
+
+@generate_bp.route('/saved/<int:saved_id>', methods=['DELETE'])
+def delete_saved_timetable(saved_id):
+    """Delete a saved timetable."""
+    user_id, guest_id = get_user_scope()
+    
+    if not user_id and not guest_id:
+        return jsonify({'error': 'No active session'}), 401
+        
+    saved = SavedTimetable.query.get(saved_id)
+    if not saved:
+        return jsonify({'error': 'Saved timetable not found'}), 404
+    
+    # Verify ownership
+    if (user_id and saved.user_id != user_id) or (guest_id and saved.guest_id != guest_id):
+         return jsonify({'error': 'Unauthorized'}), 403
+         
+    try:
+        db.session.delete(saved)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+

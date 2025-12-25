@@ -28,168 +28,220 @@
 
 <main class="generate-page-main">
     <div class="generate-container">
-        <!-- Step Progress -->
-        <div class="generate-steps">
-            <div class="step active" data-step="1">
-                <span class="step-number">1</span>
-                <span class="step-label">Select Courses</span>
-            </div>
-            <div class="step" data-step="2">
-                <span class="step-number">2</span>
-                <span class="step-label">Preferences</span>
-            </div>
-            <div class="step" data-step="3">
-                <span class="step-number">3</span>
-                <span class="step-label">Results</span>
-            </div>
+        <!-- Navigation Tabs -->
+        <div class="generate-nav-tabs">
+            <button class="nav-tab active" data-tab="generator" onclick="switchGenerateTab('generator')">
+                <i class="fas fa-magic"></i> Generator
+            </button>
+            <button class="nav-tab" data-tab="saved" onclick="switchGenerateTab('saved')">
+                <i class="fas fa-bookmark"></i> Saved Configurations
+            </button>
         </div>
 
-        <!-- Step 1: Course Selection -->
-        <div id="generateStep1" class="generate-step-content active">
-            <h3>Select Courses to Include</h3>
-            <div class="course-selection-header">
-                <label class="select-all-label">
-                    <input type="checkbox" id="selectAllCoursesGenerate" onchange="toggleAllCoursesGenerate()">
-                    Select All
-                </label>
-                <span id="selectedCreditsDisplay" class="credits-display">0 credits selected</span>
-            </div>
-            <div id="courseSelectionList" class="course-selection-list">
-                <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading courses...</p>
+        <div id="generatorView" class="tab-view active">
+            <!-- Step Progress -->
+            <div class="generate-steps">
+
+                <div class="step active" data-step="1">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Select Courses</span>
+                </div>
+                <div class="step" data-step="2">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Preferences</span>
+                </div>
+                <div class="step" data-step="3">
+                    <span class="step-number">3</span>
+                    <span class="step-label">Results</span>
+                </div>
             </div>
 
-            <!-- Count Display -->
-            <div class="count-display-section">
-                <div id="timetableCountBox" class="count-box">
-                    <i class="fas fa-calculator"></i>
-                    <span id="timetableCountText">Select courses and click "Count"</span>
+            <!-- Step 1: Course Selection -->
+            <div id="generateStep1" class="generate-step-content active">
+                <h3>Select Courses to Include</h3>
+                <div class="course-selection-header">
+                    <label class="select-all-label">
+                        <input type="checkbox" id="selectAllCoursesGenerate" onchange="toggleAllCoursesGenerate()">
+                        Select All
+                    </label>
+                    <span id="selectedCreditsDisplay" class="credits-display">0 credits selected</span>
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="countTimetables()">
-                    <i class="fas fa-search"></i> Count Valid Patterns
+                <div id="courseSelectionList" class="course-selection-list">
+                    <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Loading courses...</p>
+                </div>
+
+                <!-- Count Display -->
+                <div class="count-display-section">
+                    <div id="timetableCountBox" class="count-box">
+                        <i class="fas fa-calculator"></i>
+                        <span id="timetableCountText">Select courses and click "Count"</span>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="countTimetables()">
+                        <i class="fas fa-search"></i> Count Valid Patterns
+                    </button>
+                    <input type="hidden" id="countMode" value="distinct">
+                </div>
+            </div>
+
+            <!-- Step 2: Preferences -->
+            <div id="generateStep2" class="generate-step-content">
+                <h3><i class="fas fa-sliders-h"></i> Set Generation Preferences</h3>
+
+                <!-- Time Preferences -->
+                <h5 class="section-title"><i class="fas fa-clock"></i> Time Preferences</h5>
+                <p class="tab-desc">Prioritize certain times of day for your classes.</p>
+
+                <div class="time-mode-options">
+                    <label class="time-mode-option">
+                        <input type="radio" name="timeMode" value="none" checked>
+                        <div class="mode-card">
+                            <div class="mode-icon"><i class="fas fa-ban"></i></div>
+                            <div class="mode-label">None</div>
+                            <div class="mode-sub">No preference</div>
+                        </div>
+                    </label>
+
+                    <label class="time-mode-option">
+                        <input type="radio" name="timeMode" value="morning">
+                        <div class="mode-card">
+                            <div class="mode-icon"><i class="fas fa-sun"></i></div>
+                            <div class="mode-label">Morning</div>
+                            <div class="mode-sub">Start 08:30</div>
+                        </div>
+                    </label>
+
+                    <label class="time-mode-option">
+                        <input type="radio" name="timeMode" value="middle">
+                        <div class="mode-card">
+                            <div class="mode-icon"><i class="fas fa-cloud-sun"></i></div>
+                            <div class="mode-label">Middle</div>
+                            <div class="mode-sub">10:00 - 14:00</div>
+                        </div>
+                    </label>
+
+                    <label class="time-mode-option">
+                        <input type="radio" name="timeMode" value="afternoon">
+                        <div class="mode-card">
+                            <div class="mode-icon"><i class="fas fa-moon"></i></div>
+                            <div class="mode-label">Afternoon</div>
+                            <div class="mode-sub">End 19:30</div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="preference-toggle-group">
+                    <label class="preference-toggle">
+                        <input type="checkbox" id="prefAvoidEarlyMorning">
+                        <span class="toggle-slider"></span>
+                        Avoid 8:30 AM Classes (Period 1)
+                    </label>
+                    <label class="preference-toggle">
+                        <input type="checkbox" id="prefAvoidLateEvening">
+                        <span class="toggle-slider"></span>
+                        Avoid 6:00 PM Classes (Period 7)
+                    </label>
+                </div>
+
+                <hr style="margin: 25px 0;">
+
+                <!-- Teacher Preferences -->
+                <h5 class="section-title"><i class="fas fa-chalkboard-teacher"></i> Teacher Preferences</h5>
+                <p class="tab-desc">Rank your preferred teachers. Matches will boost the score significantly.</p>
+                <div id="teacherPreferencesList" class="teacher-prefs-list">
+                    <div class="loading-text"><i class="fas fa-spinner fa-spin"></i> Preparing faculty list...</div>
+                </div>
+            </div>
+
+            <!-- Step 3: Results -->
+            <div id="generateStep3" class="generate-step-content">
+                <h3>Generated Timetables</h3>
+                <div id="generationStatus" class="generation-status"></div>
+
+                <!-- Results layout: Preview on top, cards below -->
+                <div class="results-layout-vertical">
+                    <div class="preview-section">
+                        <div id="miniTimetablePreview" class="mini-timetable-container">
+                            <div class="preview-placeholder">
+                                <i class="fas fa-table"></i>
+                                <p>Click a timetable to preview</p>
+                                <small>Use ← → to navigate, Enter to apply</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="suggestions-scroll-section">
+                        <div class="suggestions-nav">
+                            <button class="nav-arrow nav-prev" onclick="navigatePreview(-1)" title="Previous (←)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div id="suggestionsList" class="suggestions-single-card">
+                                <!-- Single suggestion card shown here -->
+                            </div>
+                            <button class="nav-arrow nav-next" onclick="navigatePreview(1)" title="Next (→)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="card-counter" id="cardCounter"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="generate-nav-buttons">
+                <button type="button" id="generatePrevBtn" class="btn btn-secondary" onclick="prevGenerateStep()"
+                    style="display: none;">
+                    <i class="fas fa-arrow-left"></i> Back
                 </button>
-                <input type="hidden" id="countMode" value="distinct">
+                <button type="button" id="generateNextBtn" class="btn btn-primary" onclick="nextGenerateStep()">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" id="generateBtn" class="btn btn-success" onclick="generateTimetable()"
+                    style="display: none;">
+                    <i class="fas fa-magic"></i> Generate
+                </button>
             </div>
         </div>
 
-        <!-- Step 2: Preferences -->
-        <div id="generateStep2" class="generate-step-content">
-            <h3><i class="fas fa-sliders-h"></i> Set Generation Preferences</h3>
+        <!-- Saved View -->
+        <div id="savedView" class="tab-view" style="display: none;">
+            <div class="generate-step-content" style="display: block;">
+                <h3><i class="fas fa-bookmark"></i> Saved Timetables</h3>
+                <div id="savedGenerationStatus" class="generation-status"></div>
 
-            <!-- Time Preferences -->
-            <h5 class="section-title"><i class="fas fa-clock"></i> Time Preferences</h5>
-            <p class="tab-desc">Prioritize certain times of day for your classes.</p>
-
-            <div class="time-mode-options">
-                <label class="time-mode-option">
-                    <input type="radio" name="timeMode" value="none" checked>
-                    <div class="mode-card">
-                        <div class="mode-icon"><i class="fas fa-ban"></i></div>
-                        <div class="mode-label">None</div>
-                        <div class="mode-sub">No preference</div>
-                    </div>
-                </label>
-
-                <label class="time-mode-option">
-                    <input type="radio" name="timeMode" value="morning">
-                    <div class="mode-card">
-                        <div class="mode-icon"><i class="fas fa-sun"></i></div>
-                        <div class="mode-label">Morning</div>
-                        <div class="mode-sub">Start 08:30</div>
-                    </div>
-                </label>
-
-                <label class="time-mode-option">
-                    <input type="radio" name="timeMode" value="middle">
-                    <div class="mode-card">
-                        <div class="mode-icon"><i class="fas fa-cloud-sun"></i></div>
-                        <div class="mode-label">Middle</div>
-                        <div class="mode-sub">10:00 - 14:00</div>
-                    </div>
-                </label>
-
-                <label class="time-mode-option">
-                    <input type="radio" name="timeMode" value="afternoon">
-                    <div class="mode-card">
-                        <div class="mode-icon"><i class="fas fa-moon"></i></div>
-                        <div class="mode-label">Afternoon</div>
-                        <div class="mode-sub">End 19:30</div>
-                    </div>
-                </label>
-            </div>
-
-            <div class="preference-toggle-group">
-                <label class="preference-toggle">
-                    <input type="checkbox" id="prefAvoidEarlyMorning">
-                    <span class="toggle-slider"></span>
-                    Avoid 8:30 AM Classes (Period 1)
-                </label>
-                <label class="preference-toggle">
-                    <input type="checkbox" id="prefAvoidLateEvening">
-                    <span class="toggle-slider"></span>
-                    Avoid 6:00 PM Classes (Period 7)
-                </label>
-            </div>
-
-            <hr style="margin: 25px 0;">
-
-            <!-- Teacher Preferences -->
-            <h5 class="section-title"><i class="fas fa-chalkboard-teacher"></i> Teacher Preferences</h5>
-            <p class="tab-desc">Rank your preferred teachers. Matches will boost the score significantly.</p>
-            <div id="teacherPreferencesList" class="teacher-prefs-list">
-                <div class="loading-text"><i class="fas fa-spinner fa-spin"></i> Preparing faculty list...</div>
-            </div>
-        </div>
-
-        <!-- Step 3: Results -->
-        <div id="generateStep3" class="generate-step-content">
-            <h3>Generated Timetables</h3>
-            <div id="generationStatus" class="generation-status"></div>
-
-            <!-- Results layout: Preview on top, cards below -->
-            <div class="results-layout-vertical">
-                <div class="preview-section">
-                    <div id="miniTimetablePreview" class="mini-timetable-container">
-                        <div class="preview-placeholder">
-                            <i class="fas fa-table"></i>
-                            <p>Click a timetable to preview</p>
-                            <small>Use ← → to navigate, Enter to apply</small>
+                <div class="results-layout-vertical">
+                    <!-- Preview Section (Top) -->
+                    <div class="preview-section">
+                        <div id="savedMiniTimetable" class="mini-timetable-container">
+                            <div class="preview-placeholder">
+                                <i class="fas fa-bookmark"></i>
+                                <p>No saved timetables yet</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="suggestions-scroll-section">
-                    <div class="suggestions-nav">
-                        <button class="nav-arrow nav-prev" onclick="navigatePreview(-1)" title="Previous (←)">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <div id="suggestionsList" class="suggestions-single-card">
-                            <!-- Single suggestion card shown here -->
+                    <!-- Arrow Navigation + Details Card (Bottom) -->
+                    <div class="suggestions-scroll-section">
+                        <div class="suggestions-nav">
+                            <button class="nav-arrow" onclick="prevSavedTimetable()">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div id="savedDetailsCard" class="suggestions-single-card"></div>
+                            <button class="nav-arrow" onclick="nextSavedTimetable()">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
-                        <button class="nav-arrow nav-next" onclick="navigatePreview(1)" title="Next (→)">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                        <div class="card-counter" id="savedCardCounter"></div>
                     </div>
-                    <div class="card-counter" id="cardCounter"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Navigation Buttons -->
-        <div class="generate-nav-buttons">
-            <button type="button" id="generatePrevBtn" class="btn btn-secondary" onclick="prevGenerateStep()"
-                style="display: none;">
-                <i class="fas fa-arrow-left"></i> Back
-            </button>
-            <button type="button" id="generateNextBtn" class="btn btn-primary" onclick="nextGenerateStep()">
-                Next <i class="fas fa-arrow-right"></i>
-            </button>
-            <button type="button" id="generateBtn" class="btn btn-success" onclick="generateTimetable()"
-                style="display: none;">
-                <i class="fas fa-magic"></i> Generate
-            </button>
-        </div>
     </div>
+
 </main>
+
+<!-- Saved Preview Modal -->
+
 
 <style>
     /* Generate Page Specific Styles */
@@ -206,6 +258,100 @@
         padding: 30px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         width: 100%;
+    }
+
+    /* Navigation Tabs */
+    .generate-nav-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 1px;
+    }
+
+    .nav-tab {
+        background: none;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        color: #666;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tab:hover {
+        color: #3498db;
+    }
+
+    .nav-tab.active {
+        color: #3498db;
+        border-bottom-color: #3498db;
+        font-weight: bold;
+    }
+
+    /* Saved View */
+    .saved-list-container {
+        padding: 20px;
+    }
+
+    .saved-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .saved-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s;
+        position: relative;
+    }
+
+    .saved-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .saved-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .saved-title {
+        font-weight: bold;
+        color: #2c3e50;
+        font-size: 16px;
+    }
+
+    .saved-meta {
+        font-size: 12px;
+        color: #7f8c8d;
+        margin-bottom: 15px;
+    }
+
+    .saved-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .btn-delete-saved {
+        color: #e74c3c;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px;
+    }
+
+    .btn-delete-saved:hover {
+        color: #c0392b;
     }
 
     /* Step Progress */
@@ -762,6 +908,13 @@
 
     .preview-timetable-wrapper {
         overflow-x: auto;
+    }
+
+    .saved-card.active-preview {
+        border-color: #3498db;
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        background-color: #f8fbff;
+        transform: translateY(-2px);
     }
 </style>
 

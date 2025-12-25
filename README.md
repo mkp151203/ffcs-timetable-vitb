@@ -7,10 +7,30 @@ A high-performance, automated timetable planner designed specifically for VIT Bh
 ![CockroachDB](https://img.shields.io/badge/CockroachDB-Serverless-purple?style=for-the-badge&logo=cockroachlabs)
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)
 
-## ✨ Features
+## ✨ New Features (v2.0)
+
+### 🧞‍♂️ Smart Auto-Generator
+- **Algorithmic Scheduling**: Automatically generates valid timetables based on your selected courses.
+- **Custom Preferences**:
+    - **Time Mode**: Prioritize Morning, Afternoon, or Middle slots.
+    - **Avoidance**: Set strict rules to avoid 8:30 AM or 7:30 PM classes.
+    - **Teacher Ranking**: Rank your preferred faculties to ensure you get the best teachers.
+- **Unified Strategy**: Uses advanced tiered generation to balance teacher quality with time preferences.
+
+### 💾 Saved Timetables
+- **Save Configurations**: Save your perfect timetable drafts to viewing later.
+- **Preview & Apply**: View detailed previews of saved timetables and apply them with one click.
+- **Management**: Delete old drafts or load them back into the main view.
+
+### 📥 Advanced Import Options
+- **HTML Import**: Directly upload the HTML file from the VIT Registration Page (VTOP).
+- **CSV Import**: Power user? Upload a structured CSV file with course data.
+- **AI/OCR Import**: Use AI to extract the data automatically from screenshots.
+- **Manual Entry**: flexible form for single course additions.
+
+## 🌟 Core Features
 
 - **Automated Clash Detection**: Instantly checks if a new course conflicts with your existing schedule (Parallel Processing).
-- **HTML Import**: Directly upload the HTML file from the VIT Registration Page to import available slots instantly.
 - **Google Login**: Secure authentication for students to save their timetables across devices.
 - **PDF Export**: One-click download of your finalized timetable.
 - **Interactive UI**:

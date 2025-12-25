@@ -41,7 +41,7 @@ def search_courses():
     })
 
 
-@courses_bp.route('/<int:course_id>')
+@courses_bp.route('/<course_id>')
 def get_course(course_id):
     """Get course details by ID."""
     base_query = get_scoped_courses()
@@ -49,7 +49,7 @@ def get_course(course_id):
     return jsonify(course.to_dict())
 
 
-@courses_bp.route('/<int:course_id>/slots')
+@courses_bp.route('/<course_id>/slots')
 def get_course_slots(course_id):
     """Get all available slots for a course."""
     base_query = get_scoped_courses()
@@ -165,7 +165,7 @@ def add_course_manually():
         return jsonify({'error': str(e)}), 500
 
 
-@courses_bp.route('/<int:course_id>', methods=['DELETE'])
+@courses_bp.route('/<course_id>', methods=['DELETE'])
 def delete_course(course_id):
     """Delete a course and all associated slots/registrations."""
     base_query = get_scoped_courses()
@@ -222,6 +222,53 @@ def bulk_delete_courses():
             
         db.session.commit()
         return jsonify({'success': True, 'message': f'Successfully deleted {count} courses'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@courses_bp.route('/<course_id>/sync', methods=['POST'])
+def sync_course_slots(course_id):
+    """Sync slots for a course (replace all existing)."""
+    data = request.get_json()
+    slots_data = data.get('slots', [])
+    
+    # 1. Get Course (Scoped)
+    base_query = get_scoped_courses()
+    course = base_query.filter_by(id=course_id).first_or_404()
+    
+    try:
+        # 2. Delete Existing Slots
+        existing_slots = Slot.query.filter_by(course_id=course.id).all()
+        slot_ids = [s.id for s in existing_slots]
+        
+        if slot_ids:
+             Registration.query.filter(Registration.slot_id.in_(slot_ids)).delete(synchronize_session=False)
+             Slot.query.filter(Slot.id.in_(slot_ids)).delete(synchronize_session=False)
+        
+        # 3. Add New Slots
+        for s_data in slots_data:
+            # Get/Create Faculty
+            fac_name = s_data.get('faculty', 'N/A').strip() or 'N/A'
+            faculty = Faculty.query.filter_by(name=fac_name).first()
+            if not faculty:
+                faculty = Faculty(name=fac_name)
+                db.session.add(faculty)
+                db.session.flush()
+            
+            new_slot = Slot(
+                slot_code=s_data.get('slot_code', 'N/A').upper(),
+                course_id=course.id,
+                faculty_id=faculty.id,
+                venue=s_data.get('venue', 'N/A').upper(),
+                available_seats=int(s_data.get('available_seats', 0)),
+                total_seats=int(s_data.get('available_seats', 0)) # Default total to avail
+            )
+            db.session.add(new_slot)
+            
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Updated {len(slots_data)} slots for {course.code}'})
         
     except Exception as e:
         db.session.rollback()
