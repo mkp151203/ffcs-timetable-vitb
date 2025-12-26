@@ -48,6 +48,17 @@ def get_available_courses():
         courses = Course.query.filter_by(guest_id=guest_id).all()
         registrations = Registration.query.filter_by(guest_id=guest_id).all()
     
+    # Batch pre-fetch all slots for these courses to avoid N+1
+    course_ids = [c.id for c in courses]
+    all_slots = Slot.query.filter(Slot.course_id.in_(course_ids)).options(
+        db.joinedload(Slot.faculty)
+    ).all() if course_ids else []
+    
+    # Build a map: course_id -> list of slots
+    slots_by_course = {}
+    for slot in all_slots:
+        slots_by_course.setdefault(slot.course_id, []).append(slot)
+    
     # Get registered course IDs
     registered_course_ids = set()
     for reg in registrations:
@@ -59,9 +70,10 @@ def get_available_courses():
     all_faculty_names = set()
     
     for course in courses:
-        # Get faculties teaching this course
+        # Get faculties teaching this course from pre-fetched slots
         faculties = set()
-        for slot in course.slots.all():
+        course_slots = slots_by_course.get(course.id, [])
+        for slot in course_slots:
             if slot.faculty:
                 faculties.add(slot.faculty.name)
                 all_faculty_names.add(slot.faculty.name)
@@ -72,7 +84,7 @@ def get_available_courses():
             'name': course.name,
             'credits': course.c,
             'is_registered': course.id in registered_course_ids,
-            'slot_count': course.slots.count(),
+            'slot_count': len(course_slots),
             'faculties': list(faculties)
         })
     
@@ -331,17 +343,18 @@ def generate_more():
     except (ValueError, TypeError):
         return jsonify({'error': 'Invalid course ID format'}), 400
     
-    # Get courses (scoped to user)
+    # Get courses (scoped to user) with eager loading
+    eager_opts = (db.joinedload(Course.slots).joinedload(Slot.faculty),)
     if user_id:
         courses = Course.query.filter(
             Course.id.in_(course_ids),
             Course.user_id == user_id
-        ).all()
+        ).options(*eager_opts).all()
     else:
         courses = Course.query.filter(
             Course.id.in_(course_ids),
             Course.guest_id == guest_id
-        ).all()
+        ).options(*eager_opts).all()
     
     # Fallback if no courses found with scope filter
     if not courses:

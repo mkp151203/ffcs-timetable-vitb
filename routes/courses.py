@@ -247,20 +247,31 @@ def sync_course_slots(course_id):
              Registration.query.filter(Registration.slot_id.in_(slot_ids)).delete(synchronize_session=False)
              Slot.query.filter(Slot.id.in_(slot_ids)).delete(synchronize_session=False)
         
-        # 3. Add New Slots
+        # 3. Add New Slots (Batch Faculty Lookup to avoid N+1)
+        # Collect all unique faculty names first
+        faculty_names = set(s_data.get('faculty', 'N/A').strip() or 'N/A' for s_data in slots_data)
+        
+        # Fetch all existing faculties in one query
+        existing_faculties = Faculty.query.filter(Faculty.name.in_(faculty_names)).all()
+        faculty_map = {f.name: f for f in existing_faculties}
+        
+        # Create missing faculties
+        missing_names = faculty_names - set(faculty_map.keys())
+        for name in missing_names:
+            new_faculty = Faculty(name=name)
+            db.session.add(new_faculty)
+            db.session.flush()
+            faculty_map[name] = new_faculty
+        
+        # Now create slots using the map
         for s_data in slots_data:
-            # Get/Create Faculty
             fac_name = s_data.get('faculty', 'N/A').strip() or 'N/A'
-            faculty = Faculty.query.filter_by(name=fac_name).first()
-            if not faculty:
-                faculty = Faculty(name=fac_name)
-                db.session.add(faculty)
-                db.session.flush()
+            faculty = faculty_map.get(fac_name)
             
             new_slot = Slot(
                 slot_code=s_data.get('slot_code', 'N/A').upper(),
                 course_id=course.id,
-                faculty_id=faculty.id,
+                faculty_id=faculty.id if faculty else None,
                 venue=s_data.get('venue', 'N/A').upper(),
                 available_seats=int(s_data.get('available_seats', 0)),
                 total_seats=int(s_data.get('available_seats', 0)) # Default total to avail
