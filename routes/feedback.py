@@ -59,7 +59,7 @@ def view_feedback():
     all_feedback = Feedback.query.order_by(Feedback.created_at.desc()).all()
 
     # Aggregate rating data
-    all_ratings = Rating.query.all()
+    all_ratings = Rating.query.order_by(Rating.created_at.desc()).all()
     total_ratings = len(all_ratings)
     if total_ratings > 0:
         avg_rating = round(sum(r.stars for r in all_ratings) / total_ratings, 1)
@@ -74,7 +74,8 @@ def view_feedback():
                            feedbacks=all_feedback,
                            avg_rating=avg_rating,
                            total_ratings=total_ratings,
-                           distribution=distribution)
+                           distribution=distribution,
+                           all_ratings=all_ratings)
 
 @feedback_bp.route('/admin/feedback/delete/<int:feedback_id>', methods=['POST'])
 def delete_feedback(feedback_id):

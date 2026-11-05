@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, abort, current_app, request
-from models import db, User, Course, Registration, SavedTimetable
+from models import db, User, Course, Registration, SavedTimetable, Rating
 from functools import wraps
 
 admin_bp = Blueprint('admin', __name__)
@@ -100,15 +100,41 @@ def list_users():
     # Add saved timetable counts for guests
     guest_saved = db.session.query(
         SavedTimetable.guest_id,
-        db.func.count(SavedTimetable.id)
+        db.func.count(SavedTimetable.id),
+        db.func.min(SavedTimetable.created_at)
     ).filter(SavedTimetable.guest_id.isnot(None), SavedTimetable.user_id.is_(None)).group_by(SavedTimetable.guest_id).all()
 
-    for gid, count in guest_saved:
-        if gid in guest_map:
+    for gid, count, first_seen in guest_saved:
+        if gid not in guest_map:
+            guest_map[gid] = {
+                'id': gid, 
+                'course_count': 0, 
+                'registration_count': 0,
+                'saved_count': count,
+                'created_at': first_seen
+            }
+        else:
             guest_map[gid]['saved_count'] = count
-        # Note: If a guest ONLY has saved timetables but no courses/regs, they won't show up here.
-        # This is acceptable as "Active Sessions" usually imply some interaction, but we could add them if needed.
-        # For now, let's stick to guests who have added data.
+            if not guest_map[gid]['created_at'] or (first_seen and first_seen < guest_map[gid]['created_at']):
+                guest_map[gid]['created_at'] = first_seen
+
+    # Add rating guests
+    guest_ratings = db.session.query(
+        Rating.guest_id,
+        db.func.min(Rating.created_at)
+    ).filter(Rating.guest_id.isnot(None), Rating.user_id.is_(None)).group_by(Rating.guest_id).all()
+
+    for gid, first_seen in guest_ratings:
+        if gid not in guest_map:
+            guest_map[gid] = {
+                'id': gid, 
+                'course_count': 0, 
+                'registration_count': 0,
+                'saved_count': 0,
+                'created_at': first_seen
+            }
+        elif not guest_map[gid]['created_at'] or (first_seen and first_seen < guest_map[gid]['created_at']):
+            guest_map[gid]['created_at'] = first_seen
         
     guest_stats = list(guest_map.values())
 

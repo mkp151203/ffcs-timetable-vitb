@@ -45,6 +45,66 @@
         {% endif %}
     </div>
 
+    <!-- Individual Ratings Card -->
+    <div class="card" style="margin-top: 2rem; margin-bottom: 2rem;">
+        <div class="card-header" style="margin-bottom: 1rem;">
+            <h2><i class="fas fa-star"></i> Individual Ratings</h2>
+        </div>
+        <div class="card-body">
+            {% if all_ratings %}
+            <div class="table-responsive" style="max-height: 40vh; overflow-y: auto;">
+                <table class="table" style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
+                        <tr style="border-bottom: 2px solid #dee2e6;">
+                            <th style="padding: 12px; text-align: left;">Time</th>
+                            <th style="padding: 12px; text-align: left;">User / Guest</th>
+                            <th style="padding: 12px; text-align: left;">Stars</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rating in all_ratings %}
+                        <tr style="border-bottom: 1px solid #dee2e6;">
+                            <td style="padding: 12px; white-space: nowrap; color: #666;">
+                                {{ rating.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td style="padding: 12px;">
+                                {% if rating.user %}
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    {% if rating.user.profile_pic %}
+                                    <img src="{{ rating.user.profile_pic }}" alt="" style="width: 24px; height: 24px; border-radius: 50%;">
+                                    {% endif %}
+                                    <div>
+                                        <div style="font-weight: bold;">{{ rating.user.name }}</div>
+                                        <div style="font-size: 0.85em; color: #666;">{{ rating.user.email }}</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div style="color: #666; font-style: italic;">
+                                    Guest ({{ rating.guest_id[:8] if rating.guest_id else 'Unknown' }}...)
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 12px; color: #f5a623; white-space: nowrap;">
+                                {% for i in range(rating.stars) %}
+                                <i class="fas fa-star"></i>
+                                {% endfor %}
+                                {% for i in range(5 - rating.stars) %}
+                                <i class="far fa-star"></i>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                <p>No ratings available.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header"
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">

@@ -76,8 +76,7 @@ def _perform_cleanup_logic(max_duration=50):
             start_time = time.time()
             
             total_deleted = 0
-            
-            from models import Slot, Registration
+            from models import Slot, Registration, SavedTimetable
 
             while True:
                 # Check for timeout
@@ -146,6 +145,39 @@ def _perform_cleanup_logic(max_duration=50):
                 
                 # Check timeout again
                 if time.time() - start_time > max_duration:
+                    break
+
+            # 2. CLEANUP SAVED TIMETABLES
+            while True:
+                if time.time() - start_time > max_duration:
+                    break
+
+                st_candidates = db.session.query(SavedTimetable.id).filter(
+                    SavedTimetable.guest_id.isnot(None),
+                    SavedTimetable.user_id.is_(None),
+                    SavedTimetable.created_at < cutoff
+                ).limit(50).all()
+                
+                if not st_candidates:
+                    break
+                
+                st_ids = [st[0] for st in st_candidates]
+                print(f"[{datetime.now()}] Cleanup: Found {len(st_ids)} SavedTimetable candidates.")
+
+                try:
+                    delete_sts = SavedTimetable.__table__.delete().where(
+                        SavedTimetable.id.in_(st_ids)
+                    )
+                    res_sts = db.session.execute(delete_sts)
+                    db.session.commit()
+                    
+                    count = res_sts.rowcount if res_sts.rowcount is not None else len(st_ids)
+                    total_deleted += count
+                    print(f"[{datetime.now()}] Cleanup: Bulk deleted {count} saved timetables.")
+                    time.sleep(0.5)
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Cleanup SavedTimetable batch error: {e}")
                     break
 
             if total_deleted > 0:
