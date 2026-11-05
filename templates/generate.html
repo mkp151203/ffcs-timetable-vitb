@@ -923,6 +923,19 @@
     document.addEventListener('DOMContentLoaded', function () {
         loadAvailableCoursesForGeneration();
         populateTeacherPreferences();
+
+        // Google Analytics: count clicks on this page's Generate button
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function () {
+                if (typeof gtag !== 'function') return;
+                const modeEl = document.querySelector('input[name="timeMode"]:checked');
+                gtag('event', 'generate_timetable', {
+                    course_count: document.querySelectorAll('#courseSelectionList input[type="checkbox"]:checked').length,
+                    time_mode: modeEl ? modeEl.value : 'none'
+                });
+            });
+        }
     });
 </script>
 {% endblock %}
