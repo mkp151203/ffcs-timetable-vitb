@@ -1551,6 +1551,123 @@ function updateGenerateCredits() {
     }
 }
 
+// ---------- On-device timetable generation ----------
+// Suggestions are computed in the browser by static/js/timetable-generator.js
+// (a port of TimetableGenerator.generate_unified). The server only supplies the
+// course/slot data. Order of attempts: Web Worker -> main thread -> server.
+const TIMETABLE_ENGINE_URL = '/static/js/timetable-generator.js?v=3';
+let timetableEngineLoadPromise = null;
+
+function loadTimetableEngine() {
+    if (window.TimetableEngine) return Promise.resolve(window.TimetableEngine);
+    if (!timetableEngineLoadPromise) {
+        timetableEngineLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = TIMETABLE_ENGINE_URL;
+            script.onload = () => window.TimetableEngine
+                ? resolve(window.TimetableEngine)
+                : reject(new Error('Timetable engine did not initialise'));
+            script.onerror = () => {
+                timetableEngineLoadPromise = null;  // allow retry
+                reject(new Error('Could not load timetable engine'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+    return timetableEngineLoadPromise;
+}
+
+function runTimetableEngineInWorker(payload) {
+    return new Promise((resolve, reject) => {
+        let worker;
+        try {
+            worker = new Worker(TIMETABLE_ENGINE_URL);
+        } catch (e) {
+            reject(e);
+            return;
+        }
+        worker.onmessage = (event) => {
+            worker.terminate();
+            const msg = event.data || {};
+            if (msg.ok) resolve(msg.result);
+            else reject(new Error(msg.error || 'Worker generation failed'));
+        };
+        worker.onerror = (event) => {
+            if (event && event.preventDefault) event.preventDefault();
+            worker.terminate();
+            reject(new Error((event && event.message) || 'Worker error'));
+        };
+        worker.postMessage(payload);
+    });
+}
+
+// Default: exact search with variety (&variety=1-3 changes how different suggestions are).
+// ?engine=classic switches back to the random-pool generator for comparison, and
+// ?engine=exact returns to the default. The choice is remembered in this browser.
+function getGenerationSettings() {
+    let params;
+    try { params = new URLSearchParams(window.location.search); } catch (e) { params = null; }
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem('generationBeta') || '{}') || {}; } catch (e) { stored = {}; }
+
+    if (params && params.get('engine') === 'exact') stored = {};
+    if (params && params.get('engine') === 'classic') stored.classic = true;
+    if (params && params.get('variety')) stored.variety = parseInt(params.get('variety'), 10);
+
+    try {
+        if (stored.classic || stored.variety) localStorage.setItem('generationSettings', JSON.stringify(stored));
+        else localStorage.removeItem('generationSettings');
+        localStorage.removeItem('generationBeta');  // key used by the beta build
+    } catch (e) { /* storage unavailable: settings last for this page only */ }
+
+    const variety = stored.variety >= 1 && stored.variety <= 8 ? stored.variety : 2;
+    return { exact: !stored.classic, variety: variety };
+}
+
+// Returns { ok, data } where data has the same shape as /api/generate/suggest.
+// Throws if generation could not run locally (caller falls back to the server).
+async function generateSuggestionsOnDevice(courseIds, preferences, limit, settings) {
+    const response = await fetch('/api/generate/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ course_ids: courseIds })
+    });
+    const generationData = await response.json();
+    if (!response.ok) {
+        return { ok: false, data: generationData };
+    }
+
+    const payload = { data: generationData, preferences: preferences, limit: limit };
+    if (settings && settings.exact) {
+        payload.mode = 'exact';
+        payload.options = { minDiff: settings.variety };
+    }
+
+    if (typeof Worker !== 'undefined') {
+        try {
+            return { ok: true, data: await runTimetableEngineInWorker(payload) };
+        } catch (workerError) {
+            console.warn('Worker generation failed, running on main thread:', workerError);
+        }
+    }
+
+    const engine = await loadTimetableEngine();
+    return { ok: true, data: engine.run(payload) };
+}
+
+async function generateSuggestionsOnServer(courseIds, preferences, limit) {
+    const response = await fetch('/api/generate/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            course_ids: courseIds,
+            preferences: preferences,
+            limit: limit
+        })
+    });
+    return { ok: response.ok, data: await response.json() };
+}
+
 async function generateTimetable() {
     // Collect preferences based on Active Tab
     const avoidEarly = document.getElementById('prefAvoidEarlyMorning').checked;
@@ -1602,20 +1719,20 @@ async function generateTimetable() {
     console.log('Sending preferences:', generatePreferences);  // DEBUG
 
     try {
-        const response = await fetch('/api/generate/suggest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                course_ids: generateSelectedCourseIds,
-                preferences: generatePreferences,
-                limit: 100  // User requested "first 100 results"
-            })
-        });
+        const limit = 500;  // Top 500 timetables
+        const settings = getGenerationSettings();
+        let result;
+        try {
+            result = await generateSuggestionsOnDevice(generateSelectedCourseIds, generatePreferences, limit, settings);
+        } catch (deviceError) {
+            console.warn('On-device generation failed, using server:', deviceError);
+            result = await generateSuggestionsOnServer(generateSelectedCourseIds, generatePreferences, limit);
+        }
 
-        const data = await response.json();
-        console.log('Generate suggest response:', JSON.stringify(data, null, 2));  // DEBUG
+        const data = result.data;
+        console.log('Generate suggest response:', data);  // DEBUG
 
-        if (!response.ok) {
+        if (!result.ok) {
             console.error('Generate error debug:', JSON.stringify(data.debug, null, 2));  // DEBUG
             statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Error: ${data.error}`;
             return;
@@ -1642,6 +1759,10 @@ async function generateTimetable() {
 
             if (data.relaxed_constraints) {
                 msg += ' <span style="color: #e67e22; font-size: 0.9em;"><br><i class="fas fa-exclamation-triangle"></i> Strict time constraints relaxed to find matches.</span>';
+            }
+            if (data.search_complete === false) {
+                msg += '<div style="margin-top: 6px; font-size: 0.85em; color: #856404;">' +
+                    '<i class="fas fa-info-circle"></i> Large course set: showing the best timetables found before the search limit.</div>';
             }
             statusDiv.innerHTML = msg;
 

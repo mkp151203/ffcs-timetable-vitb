@@ -6,6 +6,7 @@ Generates optimal, clash-free timetable combinations using constraint satisfacti
 import random
 from typing import List, Dict, Set, Optional, Tuple, Generator
 from dataclasses import dataclass, field
+from sqlalchemy.orm import joinedload
 from models import Course, Slot, Faculty
 from models.slot import get_slot_timing, SLOT_TIMINGS
 
@@ -102,12 +103,33 @@ class TimetableGenerator:
         # Warnings collection
         self.warnings: List[str] = []
         
+        # Fetch every course's slots once (course.slots is lazy='dynamic', so each
+        # course.slots.all() would be another DB query)
+        self._course_slots: Dict[int, List[Slot]] = self._prefetch_course_slots()
+        
         # Build initial slot map, filtering out faulty slots
         self._build_slot_map()
         
         # Pre-compute optimizations
         self._build_timing_cache()
         self._build_conflict_matrix()
+    
+    def _prefetch_course_slots(self) -> Dict[int, List[Slot]]:
+        """Load all slots (with faculty) for self.courses in a single query."""
+        course_slots: Dict[int, List[Slot]] = {course.id: [] for course in self.courses}
+        if not course_slots:
+            return course_slots
+        
+        slots = Slot.query.filter(Slot.course_id.in_(list(course_slots.keys()))).options(
+            joinedload(Slot.faculty)
+        ).order_by(Slot.id).all()
+        for slot in slots:
+            course_slots[slot.course_id].append(slot)
+        return course_slots
+    
+    def _get_course_slots(self, course: Course) -> List[Slot]:
+        """Pre-fetched slots for a course (replacement for course.slots.all())."""
+        return list(self._course_slots.get(course.id, []))
     
     def _build_timing_cache(self):
         """Pre-compute timing information for all slots."""
@@ -189,7 +211,7 @@ class TimetableGenerator:
 
         for course in self.courses:
             slots = []
-            for slot in course.slots.all():
+            for slot in self._get_course_slots(course):
                 # CRITICAL: Filter out faulty slots with unknown timings
                 if self._is_slot_faulty(slot):
                     continue
@@ -1212,7 +1234,7 @@ class TimetableGenerator:
         
         for course in self.courses:
             valid_codes = set()
-            for slot in course.slots.all():
+            for slot in self._get_course_slots(course):
                 if not self._should_exclude_slot(slot):
                     valid_codes.add(slot.slot_code)
             
@@ -1901,7 +1923,7 @@ class TimetableGenerator:
         # Map course_id to reference slot for that course
         reference_slots = {}
         for course in self.courses:
-            for slot in course.slots.all():
+            for slot in self._get_course_slots(course):
                 if slot.id in reference_slot_ids:
                     reference_slots[course.id] = slot
                     break

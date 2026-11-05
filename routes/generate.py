@@ -2,7 +2,8 @@
 
 from flask import Blueprint, request, jsonify, session, render_template
 from models import db, Course, Slot, Faculty, Registration, User, SavedTimetable
-from utils.timetable_generator import TimetableGenerator, GenerationPreferences
+from utils.timetable_generator import TimetableGenerator, GenerationPreferences, MUTUAL_EXCLUSION_GROUPS
+from models.slot import SLOT_TIMINGS
 import uuid
 
 generate_bp = Blueprint('generate', __name__)
@@ -279,7 +280,7 @@ def suggest_timetable():
     limit = data.get('limit', 5)
     try:
         limit = int(limit)
-        limit = max(1, min(limit, 100))  # Clamp between 1 and 100
+        limit = max(1, min(limit, 500))  # Clamp between 1 and 500
     except (ValueError, TypeError):
         limit = 5
         
@@ -310,6 +311,84 @@ def suggest_timetable():
         'warnings': generator.warnings
     })
 
+
+
+@generate_bp.route('/data', methods=['POST'])
+def get_generation_data():
+    """
+    Return everything the browser needs to run generation locally
+    (static/js/timetable-generator.js mirrors TimetableGenerator.generate_unified).
+
+    Request body:
+    {
+        "course_ids": ["1", "2", "3"]
+    }
+    """
+    user_id, guest_id = get_user_scope()
+
+    if not user_id and not guest_id:
+        return jsonify({'error': 'No active session'}), 401
+
+    data = request.get_json() or {}
+    course_ids = data.get('course_ids', [])
+
+    if not course_ids:
+        return jsonify({'error': 'No courses selected'}), 400
+
+    try:
+        course_ids = [int(cid) for cid in course_ids]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid course ID format'}), 400
+
+    if user_id:
+        courses = Course.query.filter(
+            Course.id.in_(course_ids),
+            Course.user_id == user_id
+        ).all()
+    else:
+        courses = Course.query.filter(
+            Course.id.in_(course_ids),
+            Course.guest_id == guest_id
+        ).all()
+
+    if not courses:
+        return jsonify({'error': 'No valid courses found'}), 404
+
+    # Single query for all slots (avoids one query per course)
+    all_slots = Slot.query.filter(Slot.course_id.in_([c.id for c in courses])).options(
+        db.joinedload(Slot.faculty)
+    ).order_by(Slot.id).all()
+
+    slots_by_course = {}
+    for slot in all_slots:
+        slots_by_course.setdefault(slot.course_id, []).append(slot)
+
+    return jsonify({
+        'courses': [
+            {
+                'id': str(course.id),  # String to prevent JS precision loss
+                'code': course.code,
+                'name': course.name,
+                'credits': course.c,
+                'slots': [
+                    {
+                        'id': str(slot.id),
+                        'slot_code': slot.slot_code,
+                        'faculty_name': slot.faculty.name if slot.faculty else None,
+                        'venue': slot.venue
+                    } for slot in slots_by_course.get(course.id, [])
+                ]
+            } for course in courses
+        ],
+        'slot_timings': {
+            code: {'day': t['day'], 'period': t['period']}
+            for code, t in SLOT_TIMINGS.items()
+        },
+        'mutual_exclusion_groups': [
+            [sorted(group_a), sorted(group_b)]
+            for group_a, group_b in MUTUAL_EXCLUSION_GROUPS
+        ]
+    })
 
 
 @generate_bp.route('/more', methods=['POST'])
@@ -343,18 +422,17 @@ def generate_more():
     except (ValueError, TypeError):
         return jsonify({'error': 'Invalid course ID format'}), 400
     
-    # Get courses (scoped to user) with eager loading
-    eager_opts = (db.joinedload(Course.slots).joinedload(Slot.faculty),)
+    # Get courses (scoped to user); TimetableGenerator pre-fetches their slots in one query
     if user_id:
         courses = Course.query.filter(
             Course.id.in_(course_ids),
             Course.user_id == user_id
-        ).options(*eager_opts).all()
+        ).all()
     else:
         courses = Course.query.filter(
             Course.id.in_(course_ids),
             Course.guest_id == guest_id
-        ).options(*eager_opts).all()
+        ).all()
     
     # Fallback if no courses found with scope filter
     if not courses:
