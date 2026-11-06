@@ -3828,9 +3828,12 @@ function checkLoginAndOpenFeedback() {
     }
 }
 
-function openFeedbackModal() {
+const DEFAULT_FEEDBACK_HINT = 'Have a suggestion or found a bug? Let me know directly.';
+
+function openFeedbackModal(hint) {
     const modal = document.getElementById('feedbackModal');
     modal.classList.add('active');
+    document.getElementById('feedbackHint').textContent = hint || DEFAULT_FEEDBACK_HINT;
     document.getElementById('feedbackStatus').innerHTML = '';
     const textarea = document.getElementById('feedbackMessage');
     textarea.value = '';
@@ -3908,6 +3911,13 @@ async function submitFeedback() {
 
             star.addEventListener('click', () => {
                 const val = parseInt(star.dataset.value);
+                // Tapping the current rating again removes it
+                if (val === currentRating) {
+                    currentRating = 0;
+                    highlightStars(stars, 0);
+                    removeRating();
+                    return;
+                }
                 currentRating = val;
                 highlightStars(stars, val);
                 submitRating(val);
@@ -3965,15 +3975,43 @@ async function submitFeedback() {
                     thanksEl.style.display = 'none';
                 }, 3000);
 
-                // Show share modal for 3+ stars
+                // Show share modal for 3+ stars, developer contact for low ratings
                 if (starCount >= 3) {
                     setTimeout(() => {
                         openShareModal();
                     }, 600);
+                } else {
+                    setTimeout(openLowRatingFeedback, 600);
                 }
             }
         } catch (e) {
             console.error('Rating error:', e);
+        }
+    }
+
+    async function removeRating() {
+        const thanksEl = document.getElementById('rateThanks');
+        const thanksText = document.getElementById('rateThanksText');
+
+        try {
+            const resp = await fetch('/api/rating/remove', { method: 'POST' });
+            if (resp.ok) {
+                thanksText.textContent = 'Rating removed';
+                thanksEl.style.display = 'block';
+                setTimeout(() => {
+                    thanksEl.style.display = 'none';
+                }, 3000);
+            }
+        } catch (e) {
+            console.error('Rating remove error:', e);
+        }
+    }
+
+    function openLowRatingFeedback() {
+        if (window.IS_LOGGED_IN) {
+            openFeedbackModal("Sorry the app didn't work well for you. Please write your concerns to the developer so they can be fixed.");
+        } else if (confirm("Sorry the app didn't work well for you. Log in to write your concerns to the developer?")) {
+            window.location.href = '/auth/login';
         }
     }
 

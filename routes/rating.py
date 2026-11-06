@@ -66,3 +66,24 @@ def my_rating():
     if existing:
         return jsonify({'stars': existing.stars})
     return jsonify({'stars': 0})
+
+
+@rating_bp.route('/api/rating/remove', methods=['POST'])
+def remove_rating():
+    """Remove the current user/guest's rating, if any."""
+    user_id = session.get('user_id')
+    guest_id = session.get('guest_id')
+
+    if not user_id and not guest_id:
+        return jsonify({'error': 'Session not found'}), 401
+
+    try:
+        if user_id:
+            Rating.query.filter_by(user_id=user_id).delete()
+        else:
+            Rating.query.filter_by(guest_id=guest_id).delete()
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Rating removed'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
