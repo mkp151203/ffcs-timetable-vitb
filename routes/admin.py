@@ -1,8 +1,20 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, abort, current_app, request
 from models import db, User, Course, Registration, SavedTimetable, Rating
 from functools import wraps
+from datetime import datetime, timezone, timedelta
 
 admin_bp = Blueprint('admin', __name__)
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+@admin_bp.app_template_filter('ist')
+def format_ist(value, fmt='%Y-%m-%d %H:%M'):
+    """Format a stored UTC datetime in Indian Standard Time."""
+    if not value:
+        return ''
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(IST).strftime(fmt) + ' IST'
 
 def admin_required(f):
     @wraps(f)
@@ -136,7 +148,12 @@ def list_users():
         elif not guest_map[gid]['created_at'] or (first_seen and first_seen < guest_map[gid]['created_at']):
             guest_map[gid]['created_at'] = first_seen
         
-    guest_stats = list(guest_map.values())
+    # Newest guests first; guests with no timestamp go last
+    guest_stats = sorted(
+        guest_map.values(),
+        key=lambda g: (g['created_at'] or datetime.min).replace(tzinfo=None),
+        reverse=True
+    )
 
 
     

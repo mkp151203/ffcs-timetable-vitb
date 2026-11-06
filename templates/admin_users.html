@@ -82,7 +82,7 @@
                             <td style="padding: 12px; color: #666;" class="searchable-email">{{ item.user.email }}</td>
                             <td style="padding: 12px; color: #666;"
                                 data-timestamp="{{ item.user.created_at.timestamp() if item.user.created_at else 0 }}">
-                                {{ item.user.created_at.strftime('%Y-%m-%d %H:%M') if item.user.created_at else 'N/A' }}
+                                {{ item.user.created_at|ist if item.user.created_at else 'N/A' }}
                             </td>
                             <td style="padding: 12px; text-align: center;">{{ item.course_count }}</td>
                             <td style="padding: 12px; text-align: center;">{{ item.registration_count }}</td>
@@ -137,7 +137,7 @@
                                 <i class="fas fa-user-ghost"></i> {{ item.id[:8] }}...
                             </td>
                             <td style="padding: 12px; color: #666;">
-                                {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else 'Unknown' }}
+                                {{ item.created_at|ist if item.created_at else 'Unknown' }}
                             </td>
                             <td style="padding: 12px; text-align: center;">{{ item.course_count }}</td>
                             <td style="padding: 12px; text-align: center;">{{ item.registration_count }}</td>
