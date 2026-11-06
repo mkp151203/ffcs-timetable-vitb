@@ -33,7 +33,7 @@
             </div>
             <p style="color: #666; margin: 8px 0;">
                 {{ stats.versions }} versions, {{ stats.events }} uploads and verifications.
-                Data with no activity for 60 days is removed automatically.
+                Data with no activity for 30 days is removed automatically.
             </p>
             <form method="GET" action="{{ url_for('admin.shared_library_page') }}" style="margin-top: 10px;">
                 <input type="text" name="q" value="{{ query }}" class="form-control"

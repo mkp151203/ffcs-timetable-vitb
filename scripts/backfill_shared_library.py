@@ -1,4 +1,4 @@
-"""One-time: copy logged-in students' recent courses (last 60 days) into the shared library.
+"""One-time: copy logged-in students' recent courses (last 30 days) into the shared library.
 
 Only ADDS rows to the shared library tables. It never changes or deletes anyone's courses.
 Guest data is skipped (it expires after 7 days anyway).
@@ -49,7 +49,7 @@ def main():
             slots = [{'slot_code': s.slot_code, 'venue': s.venue,
                       'faculty': s.faculty.name if s.faculty else 'N/A',
                       'available_seats': s.available_seats}
-                     for s in Slot.query.filter_by(course_id=course.id).all()]
+                     for s in Slot.query.filter_by(course_id=course.id).order_by(Slot.id).all()]
             try:
                 clean_course = validate_course({
                     'code': course.code, 'name': course.name, 'l': course.l, 't': course.t, 'p': course.p,

@@ -1,15 +1,20 @@
 """Shared course library: merge identical uploads, rank versions and let data age out on its own.
 
+Two uploads are the same version when they have the same course code and the same set of
+(slot, venue, faculty) rows. Course name, LTPJC, type and category are typed differently by
+different students, so they don't split versions; the first upload's details are kept.
+
 Ranking (per course):
   1. Versions confirmed by at least one logged-in student come before guest-only versions.
-  2. Score = sum of event weights, each fading with a 14-day half-life and ignored after 60 days.
-     Verifications weigh 3, logged-in uploads 1, guest uploads 0.3.
-  3. Ties: more faculty, then more slots, then the most recent activity.
+  2. Verifications (weight 3 each, fading with a 14-day half-life, ignored after 30 days).
+  3. More faculty, then more slots.
+  4. Uploads (logged-in 1, guest 0.3, same fading), then the most recent activity.
 """
 
 import hashlib
 import hmac
 import json
+import re
 from datetime import datetime, timedelta
 
 from flask import current_app
@@ -17,12 +22,13 @@ from flask import current_app
 from models import db, SharedCourse, SharedCourseEvent
 
 HALF_LIFE_DAYS = 14
-CUTOFF_DAYS = 60
+CUTOFF_DAYS = 30
 WEIGHT_VERIFY = 3.0
 WEIGHT_UPLOAD = 1.0
 WEIGHT_GUEST_UPLOAD = 0.3
 MAX_VERSIONS_PER_COURSE = 10
 MAX_COURSES_PER_SEARCH = 20
+BROWSE_PAGE_SIZE = 10
 
 
 def contributor_hash(user_id, guest_id):
@@ -32,13 +38,27 @@ def contributor_hash(user_id, guest_id):
     return hmac.new(key, who.encode(), hashlib.sha256).hexdigest()
 
 
+def _norm(value):
+    return re.sub(r'\s+', ' ', str(value or '')).strip().upper()
+
+
+def slot_rows(slots):
+    """The set of (slot, venue, faculty) rows that identifies a version's data. Seats are ignored."""
+    return {(_norm(s['slot_code']), _norm(s['venue']), _norm(s['faculty'])) for s in slots}
+
+
 def fingerprint(course, slots):
-    """Same course details + same (slot, venue, faculty) set => same fingerprint. Seats are ignored."""
-    header = [course['code'], course['name'].upper(), course['l'], course['t'], course['p'], course['j'],
-              course['c'], (course['course_type'] or '').upper(), (course['category'] or '').upper()]
-    rows = sorted({(s['slot_code'], s['venue'], s['faculty'].upper()) for s in slots})
-    payload = json.dumps([header, rows], separators=(',', ':'))
+    """Same course code + same (slot, venue, faculty) rows => same fingerprint."""
+    payload = json.dumps([_norm(course['code']), sorted(slot_rows(slots))], separators=(',', ':'))
     return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _fill_blank_details(entry, course):
+    """A merged upload can supply course type or category the first uploader left blank."""
+    if not entry.course_type and course.get('course_type'):
+        entry.course_type = course['course_type']
+    if not entry.category and course.get('category'):
+        entry.category = course['category']
 
 
 def _now():
@@ -65,13 +85,16 @@ def contribute(course, slots, user_id, guest_id, at=None):
             code=course['code'], name=course['name'],
             l=course['l'], t=course['t'], p=course['p'], j=course['j'], c=course['c'],
             course_type=course['course_type'], category=course['category'],
-            faculty_count=len({s['faculty'].upper() for s in slots}),
-            slot_count=len({(s['slot_code'], s['venue'], s['faculty'].upper()) for s in slots}),
+            faculty_count=len({row[2] for row in slot_rows(slots)}),
+            slot_count=len(slot_rows(slots)),
             created_at=at,
         )
         db.session.add(entry)
-    # Latest upload carries the freshest seat counts
-    entry.slots_json = json.dumps(public_slots)
+    else:
+        _fill_blank_details(entry, course)
+    # The newest upload carries the freshest seat counts; replaying an older one doesn't overwrite them
+    if not entry.slots_json or at >= (entry.last_activity_at or at):
+        entry.slots_json = json.dumps(public_slots)
     entry.last_activity_at = max(entry.last_activity_at or at, at)
     db.session.flush()
 
@@ -104,6 +127,8 @@ def summarize(entry, events, now, viewer_hash=None):
     verifies = [e for e in live if e.kind == 'verify']
     return {
         'score': sum(event_weight(e, now) for e in live),
+        'verify_score': sum(event_weight(e, now) for e in verifies),
+        'upload_score': sum(event_weight(e, now) for e in uploads),
         'uploads': len(uploads),
         'verifications': len(verifies),
         'confirmed': any(e.kind == 'verify' or not e.is_guest for e in live),
@@ -115,9 +140,10 @@ def summarize(entry, events, now, viewer_hash=None):
 def rank_key(entry, summary):
     return (
         1 if summary['confirmed'] else 0,
-        summary['score'],
+        summary['verify_score'],
         entry.faculty_count or 0,
         entry.slot_count or 0,
+        summary['upload_score'],
         entry.last_activity_at or datetime.min,
     )
 
@@ -154,19 +180,8 @@ def _events_by_entry(entry_ids):
     return grouped
 
 
-def search(query_text, viewer_hash=None, include_hidden=False):
-    """Find courses by code or name. Returns courses with their versions, best version first."""
-    now = _now()
-    cutoff = now - timedelta(days=CUTOFF_DAYS)
-    like = f'%{query_text}%'
-    q = SharedCourse.query.filter(
-        db.or_(SharedCourse.code.ilike(like), SharedCourse.name.ilike(like)),
-        SharedCourse.last_activity_at >= cutoff,
-    )
-    if not include_hidden:
-        q = q.filter(SharedCourse.hidden.is_(False))
-    entries = q.order_by(SharedCourse.last_activity_at.desc()).limit(300).all()
-
+def _group_versions(entries, now, viewer_hash=None):
+    """{code: [(entry, summary), ...]} with the best version first. Versions with no live events are dropped."""
     events = _events_by_entry([e.id for e in entries])
     by_code = {}
     for entry in entries:
@@ -174,10 +189,27 @@ def search(query_text, viewer_hash=None, include_hidden=False):
         if summary['uploads'] == 0 and summary['verifications'] == 0:
             continue
         by_code.setdefault(entry.code, []).append((entry, summary))
+    for versions in by_code.values():
+        versions.sort(key=lambda v: rank_key(*v), reverse=True)
+    return by_code
+
+
+def search(query_text, viewer_hash=None, include_hidden=False):
+    """Find courses by code or name. Returns courses with all their versions, best version first."""
+    now = _now()
+    cutoff = now - timedelta(days=CUTOFF_DAYS)
+    like = f'%{query_text}%'
+    live = SharedCourse.query.filter(SharedCourse.last_activity_at >= cutoff)
+    if not include_hidden:
+        live = live.filter(SharedCourse.hidden.is_(False))
+    # Versions of one course can carry different names, so match codes first, then load every version
+    codes = [row[0] for row in live.filter(db.or_(SharedCourse.code.ilike(like), SharedCourse.name.ilike(like)))
+             .with_entities(SharedCourse.code).distinct().limit(MAX_COURSES_PER_SEARCH * 3)]
+    entries = (live.filter(SharedCourse.code.in_(codes)).order_by(SharedCourse.last_activity_at.desc())
+               .limit(300).all() if codes else [])
 
     courses = []
-    for code, versions in by_code.items():
-        versions.sort(key=lambda v: rank_key(*v), reverse=True)
+    for code, versions in _group_versions(entries, now, viewer_hash).items():
         best_entry, best_summary = versions[0]
         courses.append({
             'code': code,
@@ -192,6 +224,43 @@ def search(query_text, viewer_hash=None, include_hidden=False):
     for c in courses:
         c.pop('best_key')
     return courses[:MAX_COURSES_PER_SEARCH]
+
+
+def browse(page=1, per_page=BROWSE_PAGE_SIZE):
+    """One page of every course in the library, A to Z by code, summarised by its best version."""
+    now = _now()
+    cutoff = now - timedelta(days=CUTOFF_DAYS)
+    live = SharedCourse.query.filter(
+        SharedCourse.hidden.is_(False),
+        SharedCourse.last_activity_at >= cutoff,
+        SharedCourse.events.any(SharedCourseEvent.created_at >= cutoff),
+    )
+    codes_q = live.with_entities(SharedCourse.code).distinct()
+    total = codes_q.count()
+    pages = max(1, -(-total // per_page))
+    page = min(max(page, 1), pages)
+    codes = [row[0] for row in codes_q.order_by(SharedCourse.code).offset((page - 1) * per_page).limit(per_page)]
+
+    grouped = _group_versions(live.filter(SharedCourse.code.in_(codes)).all() if codes else [], now)
+    courses = []
+    for code in codes:
+        versions = grouped.get(code)
+        if not versions:
+            continue
+        best, summary = versions[0]
+        latest = max(e.last_activity_at or e.created_at for e, _ in versions)
+        courses.append({
+            'code': code,
+            'name': best.name,
+            'credits': best.c,
+            'faculty_count': best.faculty_count,
+            'slot_count': best.slot_count,
+            'verifications': summary['verifications'],
+            'confirmed': summary['confirmed'],
+            'version_count': len(versions),
+            'updated_at': latest.isoformat() + 'Z',
+        })
+    return {'page': page, 'pages': pages, 'per_page': per_page, 'total': total, 'courses': courses}
 
 
 def summary_for(entry, viewer_hash=None):
@@ -214,6 +283,52 @@ def set_verification(entry, user_id, verified):
         db.session.delete(existing)
     db.session.commit()
     return None
+
+
+def remerge(apply=True):
+    """Recompute every fingerprint and merge versions that now count as the same. Commits when applying.
+
+    Run after the fingerprint rules change. The oldest version of each group is kept; the others'
+    uploads and verifications move onto it (one per person and kind, the latest kept).
+    """
+    groups = {}
+    for entry in SharedCourse.query.order_by(SharedCourse.created_at, SharedCourse.id).all():
+        groups.setdefault(fingerprint(entry.course_dict(), entry.slots), []).append(entry)
+
+    merged = 0
+    for fp, entries in groups.items():
+        keeper, dupes = entries[0], entries[1:]
+        if not apply:
+            merged += len(dupes)
+            continue
+        events = {(e.kind, e.contributor_hash): e for e in keeper.events}
+        for dupe in dupes:
+            for event in list(dupe.events):
+                key = (event.kind, event.contributor_hash)
+                if key in events:
+                    events[key].created_at = max(events[key].created_at, event.created_at)
+                    events[key].is_guest = events[key].is_guest and event.is_guest
+                    db.session.delete(event)
+                else:
+                    event.shared_course_id = keeper.id
+                    events[key] = event
+            _fill_blank_details(keeper, dupe.course_dict())
+            keeper.hidden = keeper.hidden or dupe.hidden
+            if (dupe.last_activity_at or datetime.min) > (keeper.last_activity_at or datetime.min):
+                keeper.last_activity_at = dupe.last_activity_at
+                keeper.slots_json = dupe.slots_json   # freshest seat counts
+            db.session.flush()
+            db.session.delete(dupe)
+            merged += 1
+        db.session.flush()
+        rows = slot_rows(keeper.slots)
+        keeper.fingerprint = fp
+        keeper.faculty_count = len({row[2] for row in rows})
+        keeper.slot_count = len(rows)
+    if apply:
+        db.session.commit()
+    return {'versions_before': sum(len(e) for e in groups.values()), 'versions_after': len(groups),
+            'merged': merged}
 
 
 def cleanup(now=None):

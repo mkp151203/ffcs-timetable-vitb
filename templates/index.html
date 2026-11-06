@@ -99,7 +99,26 @@
 <!-- Main Content -->
 <main class="app-main">
     <!-- Left Sidebar - Menu -->
-    <aside class="sidebar sidebar-left">        <!-- Quick Actions -->
+    <aside class="sidebar sidebar-left">
+        <!-- Shared course search -->
+        <div class="sidebar-search-card">
+            <button type="button" class="sidebar-search-btn" onclick="openSharedLibraryModal()"
+                title="Search shared course data (press /)">
+                <i class="fas fa-search"></i>
+                <span class="sidebar-search-label">Search shared courses</span>
+                <kbd class="sidebar-search-key">/</kbd>
+            </button>
+            <p class="sidebar-search-help-title">Import a course in 3 steps</p>
+            <ol class="sidebar-search-steps">
+                <li>Search or browse the courses other students shared.</li>
+                <li>Open a course and pick a version. The most complete and verified one is first.</li>
+                <li>Tap <strong>Import</strong> to add its faculty and slots to your timetable.</li>
+            </ol>
+            <p class="sidebar-search-note">Course not listed? Add it with <strong>Import Data</strong>. It is
+                shared for others automatically, without your name.</p>
+        </div>
+
+        <!-- Quick Actions -->
         <div class="quick-actions">
             <h3><i class="fas fa-bolt"></i>Menu</h3>
             <ul class="action-list">
@@ -202,13 +221,6 @@
                     <div class="btn-text">
                         <span class="btn-title">Manual Entry</span>
                         <span class="btn-desc">Type Data Directly</span>
-                    </div>
-                </button>
-                <button class="import-action-btn" onclick="openSharedLibraryModal()">
-                    <div class="icon-box shared-icon"><i class="fas fa-users"></i></div>
-                    <div class="btn-text">
-                        <span class="btn-title">Shared Data</span>
-                        <span class="btn-desc">Uploaded by Other Students</span>
                     </div>
                 </button>
             </div>
@@ -569,19 +581,52 @@
     <div class="modal-content shared-modal-content">
         <div class="modal-header">
             <h2><i class="fas fa-users"></i> Shared Course Data</h2>
-            <button class="modal-close" onclick="closeSharedLibraryModal()">&times;</button>
+            <button class="modal-close" onclick="closeSharedLibraryModal()" aria-label="Close">&times;</button>
         </div>
-        <div class="modal-body">
-            <p class="upload-hint">
-                Faculty and slot lists other students imported this semester. The most verified and most complete
-                data is shown first. Uploaders are never shown.
-            </p>
-            <div class="shared-search-row">
-                <input type="search" id="sharedSearchInput" class="form-control" maxlength="60" autocomplete="off"
-                    placeholder="Search course code or name, e.g. CSA3006 or Deep Learning">
-            </div>
-            <div id="sharedSearchStatus" class="shared-status" aria-live="polite"></div>
-            <div id="sharedSearchResults" class="shared-results"></div>
+        <div class="modal-body shared-body">
+            <!-- List of courses: browse or search -->
+            <section id="sharedListView">
+                <label class="shared-search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="search" id="sharedSearchInput" maxlength="60" autocomplete="off"
+                        aria-label="Search shared courses"
+                        placeholder="Search by course code or name, e.g. CSA3006 or Deep Learning">
+                </label>
+                <p class="shared-intro">Faculty and slot lists other students imported this semester.</p>
+                <p class="shared-warning" role="note">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Students upload this data, so some details might be incorrect or out of date. Check
+                        against VTOP before you register.</span>
+                </p>
+                <div id="sharedSearchStatus" class="shared-status" aria-live="polite"></div>
+                <div id="sharedSearchResults"></div>
+                <nav id="sharedPager" class="shared-pager" aria-label="Shared courses pages" hidden>
+                    <button type="button" id="sharedPrevPage" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-chevron-left"></i> Prev
+                    </button>
+                    <span id="sharedPageInfo" class="shared-page-info"></span>
+                    <button type="button" id="sharedNextPage" class="btn btn-secondary btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </nav>
+            </section>
+
+            <!-- One course: its versions and the chosen version's faculty and slots -->
+            <section id="sharedCourseView" hidden>
+                <button type="button" id="sharedBackBtn" class="shared-back-btn">
+                    <i class="fas fa-arrow-left"></i> <span id="sharedBackLabel">All courses</span>
+                </button>
+                <div class="shared-course-head">
+                    <span id="sharedCourseCode" class="shared-code-chip"></span>
+                    <h3 id="sharedCourseName" class="shared-course-name"></h3>
+                    <p id="sharedCourseSummary" class="shared-course-summary"></p>
+                </div>
+                <div id="sharedCourseStatus" class="shared-status" aria-live="polite"></div>
+                <h4 class="shared-section-title">Versions</h4>
+                <p class="shared-section-hint">Different students uploaded different lists, best first. Click a
+                    version to see its full faculty and slot list.</p>
+                <ul id="sharedVersionList" class="shared-version-list" aria-label="Versions of this course"></ul>
+            </section>
         </div>
     </div>
 </div>

@@ -499,10 +499,10 @@ class TestSharedLibrary(AppTestCase):
         self.assertGreater(versions[0]['score'], versions[1]['score'])
         self.assertAlmostEqual(versions[1]['score'], 0.25, places=2)  # two half-lives
 
-    def test_cleanup_removes_data_older_than_60_days(self):
+    def test_cleanup_removes_data_older_than_30_days(self):
         Browser().upload([('a.html', read_sample('CSA3006'))])
         entry = SharedCourse.query.first()
-        entry.last_activity_at = datetime.utcnow() - timedelta(days=61)
+        entry.last_activity_at = datetime.utcnow() - timedelta(days=31)
         for e in entry.events:
             e.created_at = entry.last_activity_at
         db.session.commit()
@@ -533,6 +533,114 @@ class TestSharedLibrary(AppTestCase):
         admin.upload([('a.html', read_sample('CSA3006'))])
         self.assertEqual(Course.query.filter_by(user_id=student.id).count(), 1)
         self.assertEqual(SharedCourse.query.count(), 0)
+
+    def course_and_slots(self, name_part):
+        from utils.html_parser import parse_vtop_html
+        from utils.validation import validate_course, validate_slots
+        parsed = parse_vtop_html(read_sample(name_part).decode('utf-8'))
+        return validate_course(parsed['course']), validate_slots(parsed['slots'])[0]
+
+    def test_same_faculty_data_merges_even_if_course_details_differ(self):
+        course, slots = self.course_and_slots('CSA3006')
+        typed_differently = dict(course, name='data mining & data warehousing', l=2, t=1, p=1,
+                                 course_type='Lecture and Practical Hours On', category='')
+        reshuffled = [dict(s, faculty=s['faculty'].lower() + '  ', available_seats=0) for s in reversed(slots)]
+        a = shared_library.contribute(dict(course, category=''), slots, None, 'guest-a')
+        b = shared_library.contribute(typed_differently, reshuffled, None, 'guest-b')
+        c = shared_library.contribute(course, slots, None, 'guest-c')
+        self.assertEqual(a.id, b.id)
+        self.assertEqual(a.id, c.id)
+        self.assertEqual(SharedCourse.query.count(), 1)
+        self.assertEqual(a.name, course['name'])          # first upload's details are kept...
+        self.assertEqual(a.category, course['category'])  # ...with blanks filled in by later uploads
+        self.assertEqual(self.search(Browser(), 'CSA3006')[0]['versions'][0]['uploads'], 3)
+
+    def test_spelled_out_course_type_is_accepted(self):
+        from utils.validation import ValidationError, validate_course_type
+        long_type = 'Lecture and Tutorial ,practical hours only'
+        self.assertEqual(validate_course_type(long_type), long_type)
+        for bad in [XSS, 'LTP"><b>', "LTP'; --"]:
+            with self.assertRaises(ValidationError):
+                validate_course_type(bad)
+
+    def test_fuller_version_beats_newer_smaller_one(self):
+        course, slots = self.course_and_slots('CSA3006')
+        smaller = [s for s in slots if s['faculty'] != 'NILAMADHAB MISHRA']
+        u1 = make_user('a.23bai10080@vitbhopal.ac.in')
+        u2 = make_user('b.23bai10081@vitbhopal.ac.in')
+        u3 = make_user('c.23bai10082@vitbhopal.ac.in')
+        shared_library.contribute(course, slots, u1.id, None, at=datetime.utcnow() - timedelta(days=10))
+        shared_library.contribute(course, smaller, u2.id, None, at=datetime.utcnow())
+        shared_library.contribute(dict(course, name='DMDW'), [slots[0]], u3.id, None)
+        versions = self.search(Browser(), 'CSA3006')[0]['versions']
+        self.assertEqual([v['faculty_count'] for v in versions], [7, 6, 1])
+        # Searching by one version's name still shows every version of that course
+        self.assertEqual(len(self.search(Browser(), 'DMDW')[0]['versions']), 3)
+
+    def test_remerge_joins_versions_saved_under_old_fingerprints(self):
+        course, slots = self.course_and_slots('CSA3006')
+        person = shared_library.contributor_hash(None, 'guest-x')
+        old_rows = []
+        for i, (name, category) in enumerate([('DATA MINING', 'PC'), ('Data Mining', ''), ('DM', 'UCSDC')]):
+            entry = SharedCourse(fingerprint=f'old-{i}', code='CSA3006', name=name, l=3, t=0, p=0, j=0, c=3,
+                                 course_type='LTP', category=category, slots_json=json.dumps(slots),
+                                 faculty_count=7, slot_count=11, created_at=datetime.utcnow() - timedelta(days=3 - i),
+                                 last_activity_at=datetime.utcnow() - timedelta(days=3 - i))
+            db.session.add(entry)
+            db.session.flush()
+            who = person if i < 2 else shared_library.contributor_hash(None, f'guest-{i}')
+            db.session.add(SharedCourseEvent(shared_course_id=entry.id, kind='upload', contributor_hash=who,
+                                             is_guest=True, created_at=entry.created_at))
+            old_rows.append(entry)
+        db.session.add(SharedCourse(fingerprint='old-other', code='CSA3007', name='DL', slots_json='[]'))
+        db.session.commit()
+
+        self.assertEqual(shared_library.remerge(apply=False)['merged'], 2)
+        self.assertEqual(SharedCourse.query.count(), 4)          # dry run changes nothing
+        result = shared_library.remerge()
+        self.assertEqual((result['versions_before'], result['versions_after']), (4, 2))
+        keeper = SharedCourse.query.filter_by(code='CSA3006').one()
+        self.assertEqual(keeper.id, old_rows[0].id)
+        self.assertEqual(keeper.name, 'DATA MINING')
+        self.assertEqual(keeper.fingerprint, shared_library.fingerprint(course, slots))
+        self.assertEqual(SharedCourseEvent.query.count(), 2)     # the same person counted once
+        # New uploads of the same data now land on the merged version
+        shared_library.contribute(course, slots, None, 'guest-new')
+        self.assertEqual(SharedCourse.query.filter_by(code='CSA3006').count(), 1)
+
+    def test_browse_lists_every_course_a_to_z_in_pages(self):
+        self.assertEqual(Browser().get('/api/shared/browse').get_json()['total'], 0)
+        self.import_all_samples(Browser())
+        full = Browser().get('/api/shared/browse').get_json()
+        codes = [c['code'] for c in full['courses']]
+        self.assertEqual(full['total'], 8)
+        self.assertEqual(codes, sorted(codes))
+        self.assertNotIn('slots', full['courses'][0])          # list stays light; details come from search
+
+        seen = []
+        for page in (1, 2, 3):
+            data = shared_library.browse(page, per_page=3)
+            self.assertEqual(data['pages'], 3)
+            seen += [c['code'] for c in data['courses']]
+        self.assertEqual(seen, codes)
+        self.assertEqual(shared_library.browse(99, per_page=3)['page'], 3)    # past the end: last page
+
+        # Several versions of one course show once; hidden and expired versions are left out
+        Browser().upload([('x.html', read_sample('CSA3006').decode('utf-8').replace('NILAMADHAB MISHRA', 'X').encode())])
+        row = next(c for c in Browser().get('/api/shared/browse').get_json()['courses'] if c['code'] == 'CSA3006')
+        self.assertEqual(row['version_count'], 2)
+        SharedCourse.query.filter_by(code='CSA3007').update({'hidden': True})
+        old = SharedCourse.query.filter_by(code='CSA4029').first()
+        old.last_activity_at = datetime.utcnow() - timedelta(days=31)
+        db.session.commit()
+        codes = [c['code'] for c in Browser().get('/api/shared/browse').get_json()['courses']]
+        self.assertNotIn('CSA3007', codes)
+        self.assertNotIn('CSA4029', codes)
+
+        for page in ['0', '-1', 'abc', '9999999999', '<script>']:
+            resp = Browser().get('/api/shared/browse', query_string={'page': page})
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.get_json()['page'], 1)
 
     def test_search_input_is_sanitised(self):
         Browser().upload([('a.html', read_sample('CSA3006'))])

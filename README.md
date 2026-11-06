@@ -103,13 +103,16 @@ This project is configured for Vercel out-of-the-box using `vercel.json`.
 Every successful import (HTML, CSV, AI or manual course import) is also copied, without any uploader
 identity, into a shared library that other students can search from **Import Data → Shared Data**.
 
-- Identical uploads from different people merge into one version.
-- Ranking: versions confirmed by a logged-in student come first, then by score (verifications 3,
-  logged-in uploads 1, guest uploads 0.3, each fading with a 14-day half-life), then by more faculty and slots.
-- Anything with no activity for 60 days is removed by the daily cron, so old semesters clear themselves.
+- Uploads with the same course code and the same slot, venue and faculty rows merge into one version,
+  even if the course name, LTPJC, type or category was typed differently (seats are ignored).
+- Ranking: versions confirmed by a logged-in student come first, then by verifications (3 each), then by
+  more faculty and slots, then by uploads (logged-in 1, guest 0.3). Each weight fades with a 14-day half-life.
+- Anything with no activity for 30 days is removed by the daily cron, so old semesters clear themselves.
 - Admins can hide, delete or reset entries at `/admin/shared`.
 - One-time backfill of recent logged-in imports: `python scripts/backfill_shared_library.py` (dry run by
   default; `--apply --live` is required to write to a production database).
+- After changing how versions are matched, merge existing duplicates with
+  `python scripts/remerge_shared_library.py` (same dry-run and `--apply --live` rules).
 
 ## 🔒 Security Settings
 

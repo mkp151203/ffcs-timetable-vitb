@@ -11,7 +11,7 @@ MAX_SLOT_TOKENS = 8
 
 COURSE_CODE_RE = re.compile(r'^[A-Z]{2,5}[0-9]{3,5}[A-Z]?$')
 SLOT_TOKEN_RE = re.compile(r'^[A-Z]{1,3}[0-9]{1,3}$')
-COURSE_TYPE_RE = re.compile(r'^[A-Za-z0-9 /()+&-]{0,30}$')
+COURSE_TYPE_RE = re.compile(r'^[A-Za-z0-9 /()+&,.-]{0,100}$')  # VTOP spells some out, e.g. "Lecture and Tutorial ,practical hours only"
 CATEGORY_RE = re.compile(r'^[A-Za-z0-9 /()+&-]{0,50}$')
 VENUE_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9 ./()_&-]{0,49}$')
 # Anything that looks like HTML, a script URL or an inline event handler
@@ -69,7 +69,7 @@ def validate_int(value, field, low, high, default=0):
 
 
 def validate_course_type(value):
-    text = clean_text(value, 30)
+    text = clean_text(value, 100)
     if not COURSE_TYPE_RE.match(text):
         raise ValidationError('Course type has invalid characters.')
     return text

@@ -202,7 +202,7 @@ def _perform_cleanup_logic(max_duration=50):
                     print(f"Cleanup SavedTimetable batch error: {e}")
                     break
 
-            # 3. SHARED LIBRARY: let old uploads and verifications age out (60 days)
+            # 3. SHARED LIBRARY: let old uploads and verifications age out (30 days)
             try:
                 from utils import shared_library
                 shared_result = shared_library.cleanup()

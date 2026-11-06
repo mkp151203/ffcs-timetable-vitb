@@ -45,6 +45,18 @@ def search_shared():
     return jsonify({'query': text, 'courses': courses, 'logged_in': bool(session.get('user_id'))})
 
 
+@shared_bp.route('/browse')
+@rate_limit('shared-search', 120, 60)
+def browse_shared():
+    """Page through every course in the library, A to Z."""
+    page = request.args.get('page', '1')
+    page = int(page) if page.isdigit() and len(page) <= 5 else 1
+    try:
+        return jsonify(shared_library.browse(page))
+    except Exception as e:
+        return server_error(e)
+
+
 @shared_bp.route('/<entry_id>/import', methods=['POST'])
 @rate_limit('shared-import', 60, 600)
 def import_shared(entry_id):
