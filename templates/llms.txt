@@ -1,0 +1,28 @@
+# VIT Bhopal FFCS Timetable Maker
+
+> A free web app that helps VIT Bhopal University students plan their semester timetable under the Fully Flexible Credit System (FFCS). Students add courses, pick a faculty and slot for each, and see a weekly timetable that blocks slot clashes. It is an independent student project by Mehul K. Patel, not an official VIT Bhopal service, and it does not register courses on VTOP.
+
+## What it does
+
+- Import course and faculty data from the VTOP mock registration page (save the faculty list page as "Webpage, HTML Only" and upload it), from a CSV file, from data an AI chatbot extracts from a VTOP screenshot, or by manual entry.
+- Automatic slot clash detection when choosing a faculty and slot.
+- Auto-generate clash-free timetables from selected courses, with preferences for morning, afternoon or middle slots, avoiding 8:30 AM or 7:30 PM classes, and ranking preferred faculty.
+- Save multiple timetable drafts, preview them and apply one with a click.
+- Export the timetable as a PDF.
+- Weekly grid covers Monday to Saturday, 8:30 AM to 7:30 PM.
+
+## Accounts and data
+
+- Free to use. No payment or paid tier.
+- Works without an account (guest mode). Guest data is deleted after 7 days.
+- Login is with a Google account on the vitbhopal.ac.in domain only. Logged-in timetables are kept across devices.
+- On first login, if the account has no timetable yet, the guest's courses and saved timetables move to the account.
+
+## Pages
+
+- [Timetable maker (home)]({{ site_url }}/): build and view your timetable, import courses, FAQ
+- [Auto-generate timetable]({{ site_url }}/api/generate/page): generate clash-free timetables from preferences
+
+## Related
+
+- [VIT Bhopal previous year question papers](https://vitbhopal-pyq.vercel.app/): companion site by the same author

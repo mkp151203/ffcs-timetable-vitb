@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, Response, url_for
+from flask import Blueprint, render_template, Response, url_for, current_app, send_from_directory
 from datetime import datetime, timezone
 
 sitemap_bp = Blueprint('sitemap', __name__)
@@ -10,8 +10,9 @@ def sitemap_xml():
     
     # Static pages
     # 'main.index' is the home page
+    site_url = current_app.config['SITE_URL']
     pages.append({
-        'loc': url_for('main.index', _external=True).rstrip('/'),
+        'loc': f"{site_url}/",
         'lastmod': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
         'changefreq': 'daily',
         'priority': '1.0'
@@ -41,10 +42,45 @@ def sitemap_xml():
 
 @sitemap_bp.route('/robots.txt')
 def robots_txt():
-    """Generates robots.txt."""
+    """Generates robots.txt. One wildcard group, so search and AI crawlers are treated alike."""
     lines = [
         "User-agent: *",
         "Allow: /",
-        f"Sitemap: {url_for('sitemap.sitemap_xml', _external=True)}"
+        "Allow: /api/generate/page",
+        "Disallow: /admin/",
+        "Disallow: /auth/",
+        "Disallow: /api/",
+        "",
+        f"Sitemap: {current_app.config['SITE_URL']}/sitemap.xml"
     ]
     return Response('\n'.join(lines), mimetype='text/plain')
+
+
+@sitemap_bp.route('/favicon.ico')
+def favicon():
+    """Serve the favicon from the site root, where browsers and Google look for it."""
+    return send_from_directory(current_app.static_folder, 'favicon.ico', mimetype='image/x-icon')
+
+
+@sitemap_bp.route('/site.webmanifest')
+def webmanifest():
+    """Web app manifest (app name, icons, colours)."""
+    return {
+        'name': 'VIT Bhopal FFCS Timetable Maker',
+        'short_name': 'FFCS VIT-B',
+        'start_url': '/',
+        'display': 'standalone',
+        'background_color': '#ffffff',
+        'theme_color': '#1e3a5f',
+        'icons': [
+            {'src': url_for('static', filename='icon-96.png'), 'sizes': '96x96', 'type': 'image/png'},
+            {'src': url_for('static', filename='icon-192.png'), 'sizes': '192x192', 'type': 'image/png'},
+        ],
+    }, 200, {'Content-Type': 'application/manifest+json'}
+
+
+@sitemap_bp.route('/llms.txt')
+def llms_txt():
+    """Plain-Markdown summary of the site for AI assistants (llmstxt.org)."""
+    content = render_template('llms.txt', site_url=current_app.config['SITE_URL'])
+    return Response(content, mimetype='text/markdown')

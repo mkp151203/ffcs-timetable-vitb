@@ -1,6 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}VIT Bhopal FFCS Timetable Maker{% endblock %}
+{% block title %}VIT Bhopal FFCS Timetable Maker: Free Clash-Free Planner{% endblock %}
+
+{% set faqs = [
+    ("What is the VIT Bhopal FFCS Timetable Maker?",
+     "It is a free web app that helps VIT Bhopal students plan their semester timetable under the Fully Flexible Credit System (FFCS). You add your courses, pick a faculty and slot for each one, and the app shows the weekly timetable and warns you about slot clashes before you register on VTOP."),
+    ("Is the FFCS Timetable Maker free?",
+     "Yes. Every feature is free, including auto-generation, saved timetables and PDF export. You can use it as a guest without an account, or log in with your vitbhopal.ac.in Google account to keep your timetables."),
+    ("How do I import courses from VTOP?",
+     "Log in to the VTOP mock registration portal, select a course category and course, and open its faculty list. Press Ctrl+S and save the page as Webpage, HTML Only. Then use Import HTML in the app to upload one or more saved files."),
+    ("How does the auto-generator pick a timetable?",
+     "Select the courses you need and set your preferences: morning, afternoon or middle slots, avoiding 8:30 AM or 7:30 PM classes, and a ranking of preferred faculty. The generator finds the clash-free timetables that best match those preferences."),
+    ("What happens to my data if I use it as a guest?",
+     "Guest data is stored for your browser session and deleted after 7 days. If you log in with your VIT Bhopal email before then, and your account has no timetable yet, your guest courses and saved timetables move to your account automatically.")
+] %}
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {% for question, answer in faqs %}
+        {
+            "@type": "Question",
+            "name": {{ question | tojson }},
+            "acceptedAnswer": { "@type": "Answer", "text": {{ answer | tojson }} }
+        }{{ "," if not loop.last }}
+        {% endfor %}
+    ]
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <!-- Header -->
@@ -217,6 +247,40 @@
         </section>
     </div>
 </main>
+
+<!-- About and FAQ (collapsed by default; still in the HTML for search engines and AI assistants) -->
+<details class="about-section">
+    <summary class="about-toggle"><i class="fas fa-circle-question"></i> About this tool &amp; FAQ</summary>
+    <h2>About the VIT Bhopal FFCS Timetable Maker</h2>
+    <p>
+        The VIT Bhopal FFCS Timetable Maker is a free planner for the Fully Flexible Credit System (FFCS) at
+        VIT Bhopal University. It lets you build your semester timetable before registration, check every
+        course for slot clashes, and compare faculty and slot options in one weekly grid.
+    </p>
+
+    <h3>How to make your FFCS timetable</h3>
+    <ol>
+        <li><strong>Add your courses.</strong> Import the faculty list HTML saved from VTOP, upload a CSV, paste data that any AI chatbot extracts from a VTOP screenshot, or type a course in manually.</li>
+        <li><strong>Pick a faculty and slot</strong> for each course. The app blocks choices that clash with slots you already picked.</li>
+        <li><strong>Or auto-generate.</strong> Choose your courses and preferences, and the generator lists clash-free timetables for you.</li>
+        <li><strong>Save and export.</strong> Save drafts to compare later and download the final timetable as a PDF.</li>
+    </ol>
+
+    <h3>Frequently asked questions</h3>
+    <div class="faq-list">
+        {% for question, answer in faqs %}
+        <details class="faq-item">
+            <summary>{{ question }}</summary>
+            <p>{{ answer }}</p>
+        </details>
+        {% endfor %}
+    </div>
+
+    <p class="about-meta">
+        Built by Mehul K. Patel, a VIT Bhopal student. This is an independent student project and not an
+        official VIT Bhopal service.
+    </p>
+</details>
 
 <!-- Feedback Modal -->
 {% include "components/feedback_modal.html" %}

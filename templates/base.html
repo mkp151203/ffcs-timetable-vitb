@@ -17,43 +17,91 @@
         gtag('config', 'G-F03ZLSX9P7');
     </script>
 
-    <!-- Structured Data for Site Name -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "FFCS VIT-B",
-        "alternateName": "VIT Bhopal FFCS Timetable Maker",
-        "url": "https://ffcs-timetable.vercel.app"
-    }
-    </script>
+    {% set site_url = config.SITE_URL %}
+    <title>{% block title %}VIT Bhopal FFCS Timetable Maker: Free Clash-Free Planner{% endblock %}</title>
 
     <!-- SEO Meta Tags -->
-    <meta name="description"
-        content="VIT Bhopal FFCS Timetable Maker - The ultimate tool for planning your schedule with Smart Auto-Generation, AI Course Import, and Clash Detection. Save multiple timetables and export to PDF easily.">
-    <meta name="keywords"
-        content="ffcs vit bhopal, vit bhopal timetable maker, timtable vit bhopal, vit ffcs, vit timetable, fully flexible credit system, vit bhopal course planner, vit slot booking, vit registration helper, mehul k patel, vitb ffcs, vitb timetable, vit bhopal slot selection, vit bhopal course registration, vtop vit bhopal, vitb vtop, vit bhopal mock schedule, vit bhopal academic calendar, vitb ffcs planner, vit bhopal faculty list, vit bhopal credit calculator, automatic timetable generator, ai timetable maker, vit bhopal auto generator, smart scheduling">
+    <meta name="description" content="{% block description %}Free FFCS timetable maker for VIT Bhopal students. Import courses from VTOP, auto-generate clash-free timetables, rank faculty, save drafts and export to PDF.{% endblock %}">
     <meta name="author" content="Mehul K. Patel">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="{% block robots %}index, follow, max-image-preview:large{% endblock %}">
+    <link rel="canonical" href="{{ site_url }}{% block canonical_path %}{{ request.path }}{% endblock %}">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="FFCS VIT-B">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:url" content="{{ site_url }}{{ request.path }}">
     <meta property="og:title" content="VIT Bhopal FFCS Timetable Maker">
-    <meta property="og:description"
-        content="Plan your VIT Bhopal semester timetable easily with the FFCS Timetable Maker. Avoid slot clashes and optimize your schedule.">
+    <meta property="og:description" content="{{ self.description() }}">
+    <meta property="og:image" content="{{ site_url }}{{ url_for('static', filename='icon-192.png') }}">
+    <meta property="og:image:alt" content="FFCS Timetable Maker logo: a calendar grid with a clock in a blue circle">
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="VIT Bhopal FFCS Timetable Maker">
-    <meta property="twitter:description"
-        content="Plan your VIT Bhopal semester timetable easily with the FFCS Timetable Maker.">
-
-    <title>{% block title %}VIT Bhopal FFCS Timetable Maker{% endblock %}</title>
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="VIT Bhopal FFCS Timetable Maker">
+    <meta name="twitter:description" content="{{ self.description() }}">
+    <meta name="twitter:image" content="{{ site_url }}{{ url_for('static', filename='icon-192.png') }}">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='ffcs.svg') }}?v=2">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='ffcs.svg') }}?v=2">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='ffcs.svg') }}?v=2">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='icon-96.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icon-192.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#1e3a5f">
+
+    <!-- AI / LLM summary of the site -->
+    <link rel="alternate" type="text/markdown" title="llms.txt" href="/llms.txt">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "@id": "{{ site_url }}/#website",
+                "name": "FFCS VIT-B",
+                "alternateName": "VIT Bhopal FFCS Timetable Maker",
+                "url": "{{ site_url }}/",
+                "inLanguage": "en-IN",
+                "publisher": { "@id": "{{ site_url }}/#author" }
+            },
+            {
+                "@type": "WebApplication",
+                "@id": "{{ site_url }}/#app",
+                "name": "VIT Bhopal FFCS Timetable Maker",
+                "url": "{{ site_url }}/",
+                "description": "A free web app that helps VIT Bhopal students plan their semester timetable under the Fully Flexible Credit System (FFCS).",
+                "applicationCategory": "EducationalApplication",
+                "operatingSystem": "Any (web browser)",
+                "browserRequirements": "Requires JavaScript",
+                "isAccessibleForFree": true,
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+                "featureList": [
+                    "Import course and faculty data from the VTOP registration page HTML",
+                    "CSV, AI-assisted and manual course import",
+                    "Automatic slot clash detection",
+                    "Auto-generate timetables with time and faculty preferences",
+                    "Save multiple timetable drafts",
+                    "Export the timetable to PDF"
+                ],
+                "audience": {
+                    "@type": "EducationalAudience",
+                    "educationalRole": "student",
+                    "audienceType": "VIT Bhopal University students"
+                },
+                "author": { "@id": "{{ site_url }}/#author" }
+            },
+            {
+                "@type": "Person",
+                "@id": "{{ site_url }}/#author",
+                "name": "Mehul K. Patel"
+            }
+        ]
+    }
+    </script>
+    {% block structured_data %}{% endblock %}
 
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">

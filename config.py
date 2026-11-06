@@ -7,6 +7,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-please-change-in-production'
 DEBUG = True
 
+# Public production URL, used for canonical links, sitemap, robots.txt and llms.txt
+SITE_URL = os.environ.get('SITE_URL', 'https://ffcs-timetable.vercel.app').rstrip('/')
+
 # Session configuration — guest session cookie lifetime (activated by before_request in app.py)
 from datetime import timedelta
 PERMANENT_SESSION_LIFETIME = timedelta(days=7)

@@ -50,8 +50,8 @@ def make_session_permanent():
 @app.after_request
 def add_header(response):
     """Add headers to prevent caching for API/HTML, but allow for Static/Sitemaps."""
-    # Allow caching for static files, sitemap, and robots.txt
-    if 'static' in request.url or 'sitemap' in request.url or 'robots.txt' in request.url:
+    # Allow caching for static files, sitemap, robots.txt, favicon, manifest and llms.txt
+    if 'static' in request.url or 'sitemap' in request.url or request.path in ('/robots.txt', '/favicon.ico', '/site.webmanifest', '/llms.txt'):
         return response
         
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

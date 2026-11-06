@@ -1742,3 +1742,99 @@ kbd {
 .share-copy {
     background-color: var(--secondary-color, #4a5568);
 }
+/* About & FAQ section */
+.about-section {
+    max-width: 900px;
+    margin: var(--spacing-md, 16px) auto;
+    padding: 0 16px;
+    color: var(--text-color, #2d3748);
+    line-height: 1.6;
+}
+
+.about-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: fit-content;
+    margin: 0 auto;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    background: white;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    list-style: none;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.about-toggle:hover,
+.about-section[open] .about-toggle {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.about-toggle:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.about-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.about-toggle::after {
+    content: "\25BE";
+    transition: transform 0.2s;
+}
+
+.about-section[open] .about-toggle::after {
+    transform: rotate(180deg);
+}
+
+.about-section[open] .about-toggle {
+    margin-bottom: 1rem;
+}
+
+.about-section h2 {
+    font-size: 1.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.about-section h3 {
+    font-size: 1.1rem;
+    margin: 1.25rem 0 0.5rem;
+}
+
+.about-section ol {
+    padding-left: 1.25rem;
+}
+
+.about-section li {
+    margin-bottom: 0.4rem;
+}
+
+.faq-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    background: #fff;
+}
+
+.faq-item summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.faq-item p {
+    margin: 8px 0 0;
+}
+
+.about-meta {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: #718096;
+}
