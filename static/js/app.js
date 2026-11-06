@@ -1258,10 +1258,47 @@ function closeImportHelp() {
 
 // ==================== PDF Download ====================
 
+// The PDF libraries are only needed when someone downloads, so load them on first use
+const PDF_LIBS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+];
+let pdfLibsPromise = null;
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+    });
+}
+
+function loadPdfLibs() {
+    if (!pdfLibsPromise) {
+        pdfLibsPromise = Promise.all(PDF_LIBS.map(loadScript)).catch(err => {
+            pdfLibsPromise = null; // Allow a retry after a network error
+            throw err;
+        });
+    }
+    return pdfLibsPromise;
+}
+
 async function downloadTimetablePDF() {
-    const { jsPDF } = window.jspdf;
     const element = document.querySelector('.timetable-section');
     const btn = document.querySelector('.print-btn');
+
+    try {
+        await loadPdfLibs();
+    } catch (err) {
+        console.error('PDF library load error:', err);
+        alert('Could not load the PDF tools. Check your connection and try again.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
 
     // Temporarily hide the button for the screenshot
     if (btn) btn.style.display = 'none';
