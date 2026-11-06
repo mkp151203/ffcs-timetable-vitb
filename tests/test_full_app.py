@@ -440,7 +440,7 @@ class TestSharedLibrary(AppTestCase):
         self.assertEqual(len(versions), 2)
         self.assertGreater(versions[0]['faculty_count'], versions[1]['faculty_count'])
 
-    def test_verified_version_ranks_top_and_guest_only_last(self):
+    def test_verified_version_ranks_top_and_guest_ranks_below_equal_data(self):
         full = read_sample('CSA3006').decode('utf-8')
         alt = full.replace('NILAMADHAB MISHRA', 'SOMEONE ELSE')
         less = full.split('RIZWAN UR RAHMAN')[0]
@@ -451,7 +451,11 @@ class TestSharedLibrary(AppTestCase):
         u2 = Browser(make_user('b.23bai10021@vitbhopal.ac.in'))
         u2.upload([('less.html', less.encode())])
         versions = self.search(Browser(), 'CSA3006')[0]['versions']
-        self.assertTrue(versions[-1]['confirmed'] is False)              # guest-only goes last
+        # Equally complete: the logged-in version beats the guest one. The fewer rows lose to both.
+        self.assertTrue(versions[0]['confirmed'])
+        self.assertEqual(versions[0]['slot_count'], versions[1]['slot_count'])
+        self.assertFalse(versions[1]['confirmed'])
+        self.assertLess(versions[2]['slot_count'], versions[1]['slot_count'])
 
         # Two students verify the less complete version: it moves to the top
         less_id = next(v['id'] for v in versions if v['slot_count'] == min(x['slot_count'] for x in versions))
@@ -562,6 +566,23 @@ class TestSharedLibrary(AppTestCase):
         for bad in [XSS, 'LTP"><b>', "LTP'; --"]:
             with self.assertRaises(ValidationError):
                 validate_course_type(bad)
+
+    def test_ranking_balances_completeness_and_logged_in(self):
+        course, slots = self.course_and_slots('CSA3006')
+        user = make_user('a.23bai10090@vitbhopal.ac.in')
+        # A logged-in student shares only one row; two guests share the full list
+        shared_library.contribute(course, [slots[0]], user.id, None)
+        shared_library.contribute(course, slots, None, 'guest-1')
+        shared_library.contribute(course, slots, None, 'guest-2')
+        versions = self.search(Browser(), 'CSA3006')[0]['versions']
+        self.assertEqual([v['slot_count'] for v in versions], [11, 1])
+
+        # A logged-in version missing just one row (same faculty) beats the full guest-only one
+        names = [s['faculty'] for s in slots]
+        drop = next(i for i, n in enumerate(names) if names.count(n) > 1)
+        shared_library.contribute(course, slots[:drop] + slots[drop + 1:], user.id, None)
+        versions = self.search(Browser(), 'CSA3006')[0]['versions']
+        self.assertEqual([v['slot_count'] for v in versions], [10, 11, 1])
 
     def test_fuller_version_beats_newer_smaller_one(self):
         course, slots = self.course_and_slots('CSA3006')

@@ -105,8 +105,10 @@ identity, into a shared library that other students can search from **Import Dat
 
 - Uploads with the same course code and the same slot, venue and faculty rows merge into one version,
   even if the course name, LTPJC, type or category was typed differently (seats are ignored).
-- Ranking: versions confirmed by a logged-in student come first, then by verifications (3 each), then by
-  more faculty and slots, then by uploads (logged-in 1, guest 0.3). Each weight fades with a 14-day half-life.
+- Ranking: one score per version. Completeness (faculty and slots compared with the fullest version) is
+  worth up to 5, plus verifications (3 each) and uploads (logged-in 1, guest 0.3), which fade with a
+  14-day half-life. Logged-in data beats guest data that is about as complete, but a version with only a
+  slot or two loses to a much fuller one.
 - Anything with no activity for 30 days is removed by the daily cron, so old semesters clear themselves.
 - Admins can hide, delete or reset entries at `/admin/shared`.
 - One-time backfill of recent logged-in imports: `python scripts/backfill_shared_library.py` (dry run by

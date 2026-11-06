@@ -4,11 +4,12 @@ Two uploads are the same version when they have the same course code and the sam
 (slot, venue, faculty) rows. Course name, LTPJC, type and category are typed differently by
 different students, so they don't split versions; the first upload's details are kept.
 
-Ranking (per course):
-  1. Versions confirmed by at least one logged-in student come before guest-only versions.
-  2. Verifications (weight 3 each, fading with a 14-day half-life, ignored after 30 days).
-  3. More faculty, then more slots.
-  4. Uploads (logged-in 1, guest 0.3, same fading), then the most recent activity.
+Ranking (per course), by one score that balances completeness against who stands behind a version:
+  - Completeness: faculty and slot counts compared with the fullest version of that course, worth up to 5.
+  - Verifications 3 each, logged-in uploads 1, guest uploads 0.3, all fading with a 14-day half-life
+    and ignored after 30 days.
+  So a logged-in upload beats a guest one with the same or nearly the same data, but a version with only
+  one or two slots loses to a much fuller one, whoever uploaded it. Ties go to the most recent activity.
 """
 
 import hashlib
@@ -26,6 +27,7 @@ CUTOFF_DAYS = 30
 WEIGHT_VERIFY = 3.0
 WEIGHT_UPLOAD = 1.0
 WEIGHT_GUEST_UPLOAD = 0.3
+WEIGHT_COMPLETENESS = 5.0
 MAX_VERSIONS_PER_COURSE = 10
 MAX_COURSES_PER_SEARCH = 20
 BROWSE_PAGE_SIZE = 10
@@ -137,15 +139,19 @@ def summarize(entry, events, now, viewer_hash=None):
     }
 
 
+def rank_versions(versions):
+    """Score each (entry, summary) against the fullest version of the same course, best first."""
+    most_faculty = max((e.faculty_count or 0 for e, _ in versions), default=0) or 1
+    most_slots = max((e.slot_count or 0 for e, _ in versions), default=0) or 1
+    for entry, summary in versions:
+        completeness = ((entry.faculty_count or 0) / most_faculty + (entry.slot_count or 0) / most_slots) / 2
+        summary['rank'] = WEIGHT_COMPLETENESS * completeness + summary['score']
+    versions.sort(key=lambda v: rank_key(*v), reverse=True)
+    return versions
+
+
 def rank_key(entry, summary):
-    return (
-        1 if summary['confirmed'] else 0,
-        summary['verify_score'],
-        entry.faculty_count or 0,
-        entry.slot_count or 0,
-        summary['upload_score'],
-        entry.last_activity_at or datetime.min,
-    )
+    return (summary.get('rank', summary['score']), entry.last_activity_at or datetime.min)
 
 
 def serialize(entry, summary, include_slots=True):
@@ -190,7 +196,7 @@ def _group_versions(entries, now, viewer_hash=None):
             continue
         by_code.setdefault(entry.code, []).append((entry, summary))
     for versions in by_code.values():
-        versions.sort(key=lambda v: rank_key(*v), reverse=True)
+        rank_versions(versions)
     return by_code
 
 
