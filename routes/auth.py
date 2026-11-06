@@ -51,7 +51,7 @@ def login():
     redirect_uri = url_for('auth.callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri, hd='vitbhopal.ac.in')
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     session.pop('user_id', None)
     session.pop('guest_id', None) # Clear guest session too on explicit logout

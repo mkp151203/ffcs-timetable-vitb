@@ -1,6 +1,36 @@
 """Routes for auto-generating timetable suggestions."""
 
 from flask import Blueprint, request, jsonify, session, render_template
+from utils.security import server_error
+from utils.validation import (ValidationError, validate_free_text, validate_course_code, validate_slot_code,
+                              validate_faculty, validate_venue, validate_course_name, validate_int)
+
+
+def clean_saved_slots(slot_ids):
+    """Saved timetables hold slot ids or slot descriptions; keep only known, validated fields."""
+    if not isinstance(slot_ids, list) or not slot_ids or len(slot_ids) > 100:
+        raise ValidationError('Invalid timetable data.')
+    if isinstance(slot_ids[0], dict):
+        cleaned = []
+        for s in slot_ids:
+            if not isinstance(s, dict):
+                raise ValidationError('Invalid timetable data.')
+            item = {
+                'course_code': validate_course_code(s.get('course_code')),
+                'slot_code': validate_slot_code(s.get('slot_code')),
+                'faculty_name': validate_faculty(s.get('faculty_name') or 'TBA'),
+                'venue': validate_venue(s.get('venue')),
+                'credits': validate_int(s.get('credits'), 'Credits', 0, 40),
+            }
+            if s.get('course_name'):
+                item['course_name'] = validate_course_name(s.get('course_name'))
+            if s.get('slot_id') is not None and str(s.get('slot_id')).isdigit():
+                item['slot_id'] = str(s.get('slot_id'))
+            cleaned.append(item)
+        return cleaned
+    if not all(str(sid).isdigit() for sid in slot_ids):
+        raise ValidationError('Invalid timetable data.')
+    return [str(sid) for sid in slot_ids]
 from models import db, Course, Slot, Faculty, Registration, User, SavedTimetable
 from utils.timetable_generator import TimetableGenerator, GenerationPreferences, MUTUAL_EXCLUSION_GROUPS
 from models.slot import SLOT_TIMINGS
@@ -92,11 +122,7 @@ def get_available_courses():
     return jsonify({
         'courses': available_courses,
         'all_faculties': sorted(list(all_faculty_names)),
-        'registered_count': len(registered_course_ids),
-        'debug': {
-            'user_id': user_id,
-            'guest_id': guest_id
-        }
+        'registered_count': len(registered_course_ids)
     })
 
 
@@ -177,14 +203,7 @@ def count_timetables():
     
     return jsonify({
         'count': count,
-        'capped': count >= max_count,
-        'debug': {
-            'courses_count': len(courses),
-            'slots_per_course': slots_per_course,
-            'preferences': {
-                'avoided_faculties': preferences.avoided_faculties
-            }
-        }
+        'capped': count >= max_count
     })
 
 
@@ -238,28 +257,7 @@ def suggest_timetable():
         ).all()
     
     if not courses:
-        # Debug: provide more info about what exists
-        all_user_courses = []
-        if user_id:
-            all_user_courses = Course.query.filter_by(user_id=user_id).all()
-        else:
-            all_user_courses = Course.query.filter_by(guest_id=guest_id).all()
-        
-        # Also check unscoped
-        unscoped_courses = Course.query.filter(Course.id.in_(course_ids)).all()
-        
-        return jsonify({
-            'error': 'No valid courses found',
-            'debug': {
-                'requested_ids': course_ids,
-                'user_id': user_id,
-                'guest_id': guest_id,
-                'user_course_count': len(all_user_courses),
-                'user_course_ids': [c.id for c in all_user_courses[:10]],  # First 10
-                'unscoped_match_count': len(unscoped_courses),
-                'unscoped_owner_info': [(c.id, c.user_id, c.guest_id) for c in unscoped_courses[:5]]
-            }
-        }), 404
+        return jsonify({'error': 'No valid courses found'}), 404
     
     # Build preferences
     # Build preferences
@@ -574,7 +572,7 @@ def apply_suggestion():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 
 @generate_bp.route('/preview-details', methods=['POST'])
@@ -608,8 +606,9 @@ def get_preview_details():
     except:
         return jsonify({'error': 'Invalid IDs'}), 400
         
-    # Fetch slots with Course and Faculty
-    slots = Slot.query.filter(Slot.id.in_(slot_ids)).options(
+    # Fetch slots with Course and Faculty (only slots of the caller's own courses)
+    owner_filter = Course.user_id == user_id if user_id else Course.guest_id == guest_id
+    slots = Slot.query.join(Course, Slot.course_id == Course.id).filter(Slot.id.in_(slot_ids), owner_filter).options(
         db.joinedload(Slot.course),
         db.joinedload(Slot.faculty)
     ).all()
@@ -652,14 +651,19 @@ def save_timetable():
     if not user_id and not guest_id:
         return jsonify({'error': 'No active session'}), 401
     
-    data = request.get_json() or {}
-    name = data.get('name', 'Saved Timetable')
+    data = request.get_json(silent=True) or {}
     slot_ids = data.get('slot_ids', [])
-    total_credits = data.get('total_credits', 0)
-    course_count = data.get('course_count', 0)
     
     if not slot_ids:
         return jsonify({'error': 'No slots provided'}), 400
+
+    try:
+        name = validate_free_text(data.get('name') or 'Saved Timetable', 'Timetable name', 100)
+        slot_ids = clean_saved_slots(slot_ids)
+        total_credits = validate_int(data.get('total_credits'), 'Total credits', 0, 500)
+        course_count = validate_int(data.get('course_count'), 'Course count', 0, 100)
+    except ValidationError as e:
+        return jsonify({'error': str(e)}), 400
         
     try:
         import json
@@ -702,7 +706,7 @@ def save_timetable():
         return jsonify({'success': True, 'saved_id': saved.id})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 
 @generate_bp.route('/saved', methods=['GET'])
@@ -748,5 +752,5 @@ def delete_saved_timetable(saved_id):
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 

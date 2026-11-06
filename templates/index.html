@@ -54,16 +54,19 @@
                 <img src="{{ current_user.profile_pic }}" alt="Avatar" class="user-avatar">
                 {% endif %}
                 <span class="user-name">{{ current_user.name }}</span>
-                {% if current_user.email in ['mehul.23bai10105@vitbhopal.ac.in', 'mehul@google.com'] %}
+                {% if current_user.email in config.ADMIN_EMAILS %}
                 <a href="{{ url_for('admin.list_users') }}" class="btn-logout" title="Admin Dashboard"
                     style="margin-right: 5px;">
                     <i class="fas fa-users-cog"></i>
                 </a>
                 {% endif %}
 
-                <a href="{{ url_for('auth.logout') }}" class="btn-logout" title="Logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                </a>
+                <form action="{{ url_for('auth.logout') }}" method="POST" class="logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-logout" title="Logout" aria-label="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </form>
             </div>
             {% else %}
             <a href="{{ url_for('auth.login') }}" class="btn-google-login">
@@ -199,6 +202,13 @@
                     <div class="btn-text">
                         <span class="btn-title">Manual Entry</span>
                         <span class="btn-desc">Type Data Directly</span>
+                    </div>
+                </button>
+                <button class="import-action-btn" onclick="openSharedLibraryModal()">
+                    <div class="icon-box shared-icon"><i class="fas fa-users"></i></div>
+                    <div class="btn-text">
+                        <span class="btn-title">Shared Data</span>
+                        <span class="btn-desc">Uploaded by Other Students</span>
                     </div>
                 </button>
             </div>
@@ -554,6 +564,28 @@
 </div>
 
 <!-- HTML Import Modal -->
+<!-- Shared Course Library Modal -->
+<div id="sharedLibraryModal" class="modal">
+    <div class="modal-content shared-modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-users"></i> Shared Course Data</h2>
+            <button class="modal-close" onclick="closeSharedLibraryModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="upload-hint">
+                Faculty and slot lists other students imported this semester. The most verified and most complete
+                data is shown first. Uploaders are never shown.
+            </p>
+            <div class="shared-search-row">
+                <input type="search" id="sharedSearchInput" class="form-control" maxlength="60" autocomplete="off"
+                    placeholder="Search course code or name, e.g. CSA3006 or Deep Learning">
+            </div>
+            <div id="sharedSearchStatus" class="shared-status" aria-live="polite"></div>
+            <div id="sharedSearchResults" class="shared-results"></div>
+        </div>
+    </div>
+</div>
+
 <div id="htmlImportModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">

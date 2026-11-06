@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, session
+from utils.security import server_error
 from datetime import datetime
 from models import db, Rating
 
@@ -8,7 +9,7 @@ rating_bp = Blueprint('rating', __name__)
 @rating_bp.route('/api/rating/submit', methods=['POST'])
 def submit_rating():
     """Submit a star rating (1-5). One rating per user/guest, updated on re-submit."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     stars = data.get('stars')
 
     if not stars or not isinstance(stars, int) or stars < 1 or stars > 5:
@@ -45,7 +46,7 @@ def submit_rating():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 
 @rating_bp.route('/api/rating/my', methods=['GET'])
@@ -86,4 +87,4 @@ def remove_rating():
         return jsonify({'success': True, 'message': 'Rating removed'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)

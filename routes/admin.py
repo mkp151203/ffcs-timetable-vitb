@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, abort, current_app, request
 from models import db, User, Course, Registration, SavedTimetable, Rating
 from functools import wraps
+import re
 from datetime import datetime, timezone, timedelta
 
 admin_bp = Blueprint('admin', __name__)
@@ -185,6 +186,8 @@ def impersonate_user(user_id):
 @admin_required
 def impersonate_guest(guest_id):
     """Start impersonating a guest session."""
+    if not re.fullmatch(r'[0-9a-fA-F-]{8,64}', guest_id or ''):
+        abort(404)
     if 'original_user_id' not in session:
         session['original_user_id'] = session['user_id']
         
@@ -207,3 +210,63 @@ def stop_impersonation():
     
     return redirect(url_for('admin.list_users'))
 
+
+
+# ==================== Shared course library ====================
+
+@admin_bp.route('/shared')
+@admin_required
+def shared_library_page():
+    """Browse, hide or remove shared course data."""
+    from utils import shared_library
+    from utils.validation import clean_text
+    query = re.sub(r"[^A-Za-z0-9 &.():'/-]", '', clean_text(request.args.get('q', ''), 60)).strip()
+    courses = shared_library.search(query or '', include_hidden=True) if len(query) >= 2 else []
+    if not query:
+        # Without a search, show the most recently active versions
+        from models import SharedCourse
+        recent = SharedCourse.query.order_by(SharedCourse.last_activity_at.desc()).limit(50).all()
+        courses = []
+        for entry in recent:
+            summary = shared_library.summary_for(entry)
+            courses.append({'code': entry.code, 'name': entry.name, 'version_count': 1,
+                            'versions': [dict(shared_library.serialize(entry, summary, include_slots=False),
+                                              hidden=entry.hidden)]})
+    else:
+        from models import SharedCourse
+        hidden_ids = {str(e.id) for e in SharedCourse.query.filter(SharedCourse.hidden.is_(True)).all()}
+        for course in courses:
+            for v in course['versions']:
+                v['hidden'] = v['id'] in hidden_ids
+    from models import SharedCourse, SharedCourseEvent
+    stats = {'versions': SharedCourse.query.count(), 'events': SharedCourseEvent.query.count()}
+    return render_template('admin_shared.html', courses=courses, query=query, stats=stats)
+
+
+@admin_bp.route('/shared/<int:entry_id>/<action>', methods=['POST'])
+@admin_required
+def shared_library_action(entry_id, action):
+    from models import SharedCourse
+    entry = SharedCourse.query.get_or_404(entry_id)
+    if action == 'hide':
+        entry.hidden = True
+        flash(f'Hidden {entry.code} version from search.', 'success')
+    elif action == 'unhide':
+        entry.hidden = False
+        flash(f'{entry.code} version is visible again.', 'success')
+    elif action == 'delete':
+        db.session.delete(entry)
+        flash(f'Deleted {entry.code} version.', 'success')
+    else:
+        abort(404)
+    db.session.commit()
+    return redirect(url_for('admin.shared_library_page', q=request.form.get('q', '')))
+
+
+@admin_bp.route('/shared/reset', methods=['POST'])
+@admin_required
+def shared_library_reset():
+    from utils import shared_library
+    result = shared_library.reset_all()
+    flash(f"Shared library emptied ({result['versions_removed']} versions removed).", 'success')
+    return redirect(url_for('admin.shared_library_page'))

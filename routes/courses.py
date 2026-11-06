@@ -1,4 +1,7 @@
 from flask import Blueprint, jsonify, request, session
+from utils.security import server_error, rate_limit
+from utils.validation import (ValidationError, validate_course_code, validate_course_name, validate_slot_code,
+                              validate_venue, validate_faculty, validate_int, validate_slot)
 from models import db, Course, Slot, Faculty, Registration
 
 courses_bp = Blueprint('courses', __name__)
@@ -126,15 +129,28 @@ def get_course_options():
 
 
 @courses_bp.route('/manual', methods=['POST'])
+@rate_limit('manual-course', 60, 600)
 def add_course_manually():
     """Add a course manually with slot and auto-register."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     
     # Validate required fields
     required = ['course_code', 'course_name', 'slot_code']
     for field in required:
         if not data.get(field):
             return jsonify({'error': f'{field} is required'}), 400
+
+    try:
+        data = {
+            'course_code': validate_course_code(data.get('course_code')),
+            'course_name': validate_course_name(data.get('course_name')),
+            'slot_code': validate_slot_code(data.get('slot_code')),
+            'venue': validate_venue(data.get('venue')),
+            'faculty': validate_faculty(data.get('faculty')),
+            'credits': validate_int(data.get('credits'), 'Credits', 0, 40),
+        }
+    except ValidationError as e:
+        return jsonify({'error': str(e)}), 400
             
     # Determine owner
     user_id = session.get('user_id')
@@ -169,7 +185,7 @@ def add_course_manually():
                 t=0,
                 p=0,
                 j=0,
-                c=int(data.get('credits', 0)),
+                c=data['credits'],
                 course_type='N/A',
                 category='N/A',
                 user_id=user_id,
@@ -181,7 +197,7 @@ def add_course_manually():
         # Find or create faculty (Faculty is shared? Or should be scoped?
         # Faculty names are generic. Let's keep faculty shared for now to avoid DUPLICATE faculty table boom, 
         # or just create if missing. Faculty has no sensitive data.)
-        faculty_name = data.get('faculty', 'N/A').strip() or 'N/A'
+        faculty_name = data['faculty']
         faculty = Faculty.query.filter_by(name=faculty_name).first()
         if not faculty:
             faculty = Faculty(name=faculty_name)
@@ -189,8 +205,8 @@ def add_course_manually():
             db.session.flush()
         
         # Check if this exact slot (Course + Faculty + Slot Code) already exists
-        slot_code = data['slot_code'].upper()
-        venue = data.get('venue', 'N/A').strip().upper() or 'N/A'
+        slot_code = data['slot_code']
+        venue = data['venue']
         
         slot = Slot.query.filter_by(
             slot_code=slot_code,
@@ -261,7 +277,7 @@ def add_course_manually():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 
 @courses_bp.route('/<course_id>', methods=['DELETE'])
@@ -276,13 +292,13 @@ def delete_course(course_id):
         return jsonify({'success': True, 'message': f'Course {course.code} deleted successfully'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 
 @courses_bp.route('/bulk', methods=['DELETE'])
 def bulk_delete_courses():
     """Delete multiple courses."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     course_ids = data.get('course_ids', [])
     
     if not course_ids:
@@ -324,14 +340,26 @@ def bulk_delete_courses():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 
 @courses_bp.route('/<course_id>/sync', methods=['POST'])
 def sync_course_slots(course_id):
     """Sync slots for a course (replace all existing)."""
-    data = request.get_json()
-    slots_data = data.get('slots', [])
+    data = request.get_json(silent=True) or {}
+    raw_slots = data.get('slots', [])
+    if not isinstance(raw_slots, list) or len(raw_slots) > 300:
+        return jsonify({'error': 'Invalid slot list.'}), 400
+
+    # Validate every row before touching anything; report the first bad row
+    slots_data = []
+    for index, row in enumerate(raw_slots, start=1):
+        if not isinstance(row, dict):
+            return jsonify({'error': f'Row {index}: invalid data.'}), 400
+        try:
+            slots_data.append(validate_slot(row))
+        except ValidationError as e:
+            return jsonify({'error': f'Row {index}: {e}'}), 400
     
     # 1. Get Course (Scoped)
     base_query = get_scoped_courses()
@@ -348,7 +376,7 @@ def sync_course_slots(course_id):
         
         # 3. Add New Slots (Batch Faculty Lookup to avoid N+1)
         # Collect all unique faculty names first
-        faculty_names = set(s_data.get('faculty', 'N/A').strip() or 'N/A' for s_data in slots_data)
+        faculty_names = set(s_data['faculty'] for s_data in slots_data)
         
         # Fetch all existing faculties in one query
         existing_faculties = Faculty.query.filter(Faculty.name.in_(faculty_names)).all()
@@ -364,16 +392,15 @@ def sync_course_slots(course_id):
         
         # Now create slots using the map
         for s_data in slots_data:
-            fac_name = s_data.get('faculty', 'N/A').strip() or 'N/A'
-            faculty = faculty_map.get(fac_name)
+            faculty = faculty_map.get(s_data['faculty'])
             
             new_slot = Slot(
-                slot_code=s_data.get('slot_code', 'N/A').upper(),
+                slot_code=s_data['slot_code'],
                 course_id=course.id,
-                faculty_id=faculty.id if faculty else None,
-                venue=s_data.get('venue', 'N/A').upper(),
-                available_seats=int(s_data.get('available_seats', 0)),
-                total_seats=int(s_data.get('available_seats', 0)) # Default total to avail
+                faculty_id=faculty.id,
+                venue=s_data['venue'],
+                available_seats=s_data['available_seats'],
+                total_seats=s_data['available_seats'] # Default total to avail
             )
             db.session.add(new_slot)
             
@@ -382,4 +409,4 @@ def sync_course_slots(course_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)

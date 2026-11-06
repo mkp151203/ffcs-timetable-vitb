@@ -98,6 +98,39 @@ This project is configured for Vercel out-of-the-box using `vercel.json`.
     ```
 3.  Add Environment Variables in Vercel Dashboard (Settings > Environment Variables).
 
+## 🤝 Shared Course Library
+
+Every successful import (HTML, CSV, AI or manual course import) is also copied, without any uploader
+identity, into a shared library that other students can search from **Import Data → Shared Data**.
+
+- Identical uploads from different people merge into one version.
+- Ranking: versions confirmed by a logged-in student come first, then by score (verifications 3,
+  logged-in uploads 1, guest uploads 0.3, each fading with a 14-day half-life), then by more faculty and slots.
+- Anything with no activity for 60 days is removed by the daily cron, so old semesters clear themselves.
+- Admins can hide, delete or reset entries at `/admin/shared`.
+- One-time backfill of recent logged-in imports: `python scripts/backfill_shared_library.py` (dry run by
+  default; `--apply --live` is required to write to a production database).
+
+## 🔒 Security Settings
+
+Set these in Vercel (Settings > Environment Variables):
+
+| Variable | Why |
+|---|---|
+| `SECRET_KEY` | **Required.** The app refuses to start on Vercel without it. Use a long random value. |
+| `CRON_SECRET` | Recommended. When set, `/api/cron/cleanup` only accepts Vercel's own cron calls. |
+
+All user input is validated on the server, every write request needs a CSRF token, and pages send a
+Content-Security-Policy and other security headers.
+
+## 🧪 Tests
+
+The tests always use a throwaway SQLite database and never touch the database in `.env`:
+
+```bash
+venv/bin/python -m unittest tests.test_full_app tests.test_mutual_exclusion
+```
+
 ## 📊 Analytics
 
 Google Analytics 4 is integrated. To enable it:

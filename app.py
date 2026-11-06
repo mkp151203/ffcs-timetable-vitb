@@ -4,9 +4,12 @@ from routes import main_bp, courses_bp, registration_bp, upload_bp, auth_bp, sit
 
 from routes.feedback import feedback_bp
 from routes.rating import rating_bp
+from routes.shared import shared_bp
 from routes.auth import init_oauth
 from flask_compress import Compress
 from werkzeug.middleware.proxy_fix import ProxyFix
+from utils.security import csrf_protect, add_security_headers, get_csrf_token
+import hmac
 import os
 
 app = Flask(__name__)
@@ -34,22 +37,41 @@ app.register_blueprint(feedback_bp)
 app.register_blueprint(rating_bp)
 app.register_blueprint(sitemap_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(shared_bp, url_prefix='/api/shared')
 
 
 # Create tables
 with app.app_context():
     db.create_all()
 
-from flask import request, session as flask_session
+from flask import request, jsonify, session as flask_session
 
 @app.before_request
 def make_session_permanent():
     """Ensure session cookie persists for 7 days (not deleted on browser close)."""
     flask_session.permanent = True
 
+# Every POST/PUT/PATCH/DELETE must carry the session's CSRF token
+app.before_request(csrf_protect)
+
+@app.context_processor
+def inject_csrf_token():
+    return {'csrf_token': get_csrf_token}
+
+@app.errorhandler(413)
+def request_too_large(e):
+    return jsonify({'error': 'Upload is too large. Each upload can be at most 8 MB.'}), 413
+
+@app.errorhandler(500)
+def internal_error(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Something went wrong. Please try again.'}), 500
+    return 'Something went wrong. Please try again.', 500
+
 @app.after_request
 def add_header(response):
     """Add headers to prevent caching for API/HTML, but allow for Static/Sitemaps."""
+    add_security_headers(response)
     # Allow caching for static files, sitemap, robots.txt, favicon, manifest and llms.txt
     if 'static' in request.url or 'sitemap' in request.url or request.path in ('/robots.txt', '/favicon.ico', '/site.webmanifest', '/llms.txt'):
         return response
@@ -180,6 +202,16 @@ def _perform_cleanup_logic(max_duration=50):
                     print(f"Cleanup SavedTimetable batch error: {e}")
                     break
 
+            # 3. SHARED LIBRARY: let old uploads and verifications age out (60 days)
+            try:
+                from utils import shared_library
+                shared_result = shared_library.cleanup()
+                if shared_result['versions_removed'] or shared_result['events_removed']:
+                    print(f"[{datetime.now()}] Cleanup: shared library {shared_result}")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Shared library cleanup error: {e}")
+
             if total_deleted > 0:
                 print(f"[{datetime.now()}] Cleanup complete. Total guest items deleted: {total_deleted}")
                 return total_deleted
@@ -199,13 +231,20 @@ def cleanup_orphaned_data():
 @app.route('/api/cron/cleanup')
 def trigger_cleanup():
     """Endpoint for Serverless Cron Jobs - cleans GUEST data only."""
+    cron_secret = app.config.get('CRON_SECRET')
+    if cron_secret:
+        sent = request.headers.get('Authorization', '')
+        if not hmac.compare_digest(sent, f'Bearer {cron_secret}'):
+            return {'error': 'Unauthorized'}, 401
+    elif app.config.get('IS_PRODUCTION'):
+        app.logger.warning('CRON_SECRET is not set: /api/cron/cleanup can be triggered by anyone')
     count = _perform_cleanup_logic()
     return {'status': 'success', 'deleted_count': count}
 
-# Start cleanup thread ONLY if not on Vercel
-if not os.environ.get('VERCEL'):
+# Start cleanup thread ONLY if not on Vercel (and not in tests)
+if not os.environ.get('VERCEL') and not os.environ.get('FFCS_DISABLE_CLEANUP_THREAD'):
     cleanup_thread = threading.Thread(target=cleanup_orphaned_data, daemon=True)
     cleanup_thread.start()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=app.config.get('DEBUG', False), port=5000)

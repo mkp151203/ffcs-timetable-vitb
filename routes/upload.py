@@ -1,9 +1,13 @@
 """Routes for HTML/CSV file upload and parsing."""
 
-from flask import Blueprint, request, jsonify, session, Response
-from models import db, Course, Faculty, Slot
+from flask import Blueprint, request, jsonify, session, Response, current_app
+from models import db
 from utils.html_parser import parse_vtop_html
 from utils.csv_parser import parse_course_csv
+from utils.validation import ValidationError, validate_course, validate_slots, safe_filename
+from utils.course_store import save_course_for_owner
+from utils.security import rate_limit
+from utils import shared_library
 
 upload_bp = Blueprint('upload', __name__)
 
@@ -29,7 +33,43 @@ C11+C12+TC1,ANOTHER FACULTY,AB-105,25
             'Content-Disposition': 'attachment; filename=course_template.csv'
         }
     )
+HTML_EXTENSIONS = ('.html', '.htm', '.mhtml')
+
+
+def _read_and_parse(file):
+    """Read an uploaded file and return validated (course, slots, rejected_rows).
+
+    Raises ValidationError with a user-safe message.
+    """
+    raw = file.read()
+    try:
+        content = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        content = raw.decode('latin-1')
+    try:
+        if file.filename.lower().endswith('.csv'):
+            parsed = parse_course_csv(content)
+        else:
+            parsed = parse_vtop_html(content)
+    except ValueError as e:
+        # The CSV parser explains format problems with ValueError
+        raise ValidationError(str(e)[:200])
+    if not parsed or not parsed.get('course'):
+        raise ValidationError('Could not find course details in this file.')
+    course = validate_course(parsed['course'])
+    slots, rejected = validate_slots(parsed.get('slots'))
+    return course, slots, rejected
+
+
+def _too_many_files(files):
+    limit = current_app.config.get('MAX_FILES_PER_UPLOAD', 30)
+    if len(files) > limit:
+        return jsonify({'error': f'You can upload at most {limit} files at once.'}), 400
+    return None
+
+
 @upload_bp.route('/parse', methods=['POST'])
+@rate_limit('upload-parse', 60, 600)
 def parse_html_file():
     """
     Parse uploaded HTML file and extract course/slot information.
@@ -37,124 +77,125 @@ def parse_html_file():
     """
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
-    
+
     file = request.files['file']
-    
+
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
-    
-    if not file.filename.lower().endswith(('.html', '.htm', '.mhtml')):
+
+    if not file.filename.lower().endswith(HTML_EXTENSIONS):
         return jsonify({'error': 'File must be HTML or MHTML'}), 400
-    
+
     try:
-        html_content = file.read().decode('utf-8')
-        parsed = parse_vtop_html(html_content)
-        
-        if not parsed['course']:
-            return jsonify({'error': 'Could not parse course information from HTML'}), 400
-        
-        return jsonify({
-            'success': True,
-            'course': parsed['course'],
-            'slots': parsed['slots'],
-            'slot_count': len(parsed['slots'])
-        })
-        
+        course, slots, rejected = _read_and_parse(file)
+    except ValidationError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f'Error parsing file: {str(e)}'}), 500
+        current_app.logger.exception('HTML parse failed: %s', e)
+        return jsonify({'error': 'Could not read this file.'}), 400
+
+    return jsonify({
+        'success': True,
+        'course': course,
+        'slots': slots,
+        'slot_count': len(slots),
+        'rejected_rows': rejected
+    })
 
 @upload_bp.route('/parse-batch', methods=['POST'])
+@rate_limit('upload-parse', 60, 600)
 def parse_html_batch():
     """
     Parse uploaded HTML files in batch and extract course/slot information.
     """
     files = request.files.getlist('files[]')
-    
+
     if not files:
         return jsonify({'error': 'No files provided'}), 400
-    
+    too_many = _too_many_files(files)
+    if too_many:
+        return too_many
+
     results = []
     for file in files:
         if file.filename == '':
             continue
-            
-        if not file.filename.lower().endswith(('.html', '.htm', '.mhtml')):
-            results.append({'filename': file.filename, 'status': 'error', 'error': 'File must be HTML or MHTML'})
+        filename = safe_filename(file.filename)
+
+        if not file.filename.lower().endswith(HTML_EXTENSIONS):
+            results.append({'filename': filename, 'status': 'error', 'error': 'File must be HTML or MHTML'})
             continue
-            
+
         try:
-            html_content = file.read().decode('utf-8')
-            parsed = parse_vtop_html(html_content)
-            
-            if not parsed['course']:
-                results.append({'filename': file.filename, 'status': 'error', 'error': 'Could not parse course info'})
-            else:
-                results.append({
-                    'filename': file.filename,
-                    'status': 'success',
-                    'course': parsed['course'],
-                    'slot_count': len(parsed['slots'])
-                })
+            course, slots, rejected = _read_and_parse(file)
+            results.append({
+                'filename': filename,
+                'status': 'success',
+                'course': course,
+                'slot_count': len(slots),
+                'rejected_rows': rejected
+            })
+        except ValidationError as e:
+            results.append({'filename': filename, 'status': 'error', 'error': str(e)})
         except Exception as e:
-            results.append({'filename': file.filename, 'status': 'error', 'error': str(e)})
+            current_app.logger.exception('HTML parse failed: %s', e)
+            results.append({'filename': filename, 'status': 'error', 'error': 'Could not read this file.'})
 
     return jsonify({'results': results})
 
 @upload_bp.route('/import', methods=['POST'])
+@rate_limit('upload-import', 60, 600)
 def import_html_file():
     """
-    Parse uploaded HTML files and save data to database.
+    Parse uploaded HTML/CSV files and save data to database.
     Accepts multiple files key 'files[]'.
     """
     files = request.files.getlist('files[]')
-    
+
     if not files:
-        # Fallback for single file 'file' logic if needed, or just error
         if 'file' in request.files:
             files = [request.files['file']]
         else:
             return jsonify({'error': 'No files provided'}), 400
-    
+    too_many = _too_many_files(files)
+    if too_many:
+        return too_many
+
     # Determine owner
     user_id = session.get('user_id')
     guest_id = session.get('guest_id')
-    
+
     if not user_id and not guest_id:
         return jsonify({'error': 'No active session'}), 401
 
     results = []
     success_count = 0
-    
+
     for file in files:
         if file.filename == '':
             continue
-            
-        if not file.filename.lower().endswith(('.html', '.htm', '.mhtml', '.csv')):
+        filename = safe_filename(file.filename)
+
+        if not file.filename.lower().endswith(HTML_EXTENSIONS + ('.csv',)):
             results.append({
-                'filename': file.filename,
+                'filename': filename,
                 'status': 'error',
                 'message': 'Invalid file type. Supported: HTML, MHTML, CSV'
             })
             continue
 
         try:
-            # Process single file
-            result = _process_single_file_import(file, user_id, guest_id)
-            results.append(result)
-            if result['status'] == 'success':
-                success_count += 1
-                
+            result = _process_single_file_import(file, filename, user_id, guest_id)
+        except ValidationError as e:
+            db.session.rollback()
+            result = {'filename': filename, 'status': 'error', 'message': str(e)}
         except Exception as e:
-            # DB Rollback handled inside helper or here if transaction spans whole loop?
-            # We want partial success, so _process_single_file_import should handle its own transaction lifecycle 
-            # OR we handle it here. 
-            # If we want to isolate errors, we should commit/rollback per file.
-            db.session.rollback() 
-            results.append({
-                'filename': file.filename,
-                'status': 'error',
-                'message': str(e)
-            })
+            db.session.rollback()
+            current_app.logger.exception('Import failed: %s', e)
+            result = {'filename': filename, 'status': 'error', 'message': 'Could not import this file.'}
+        results.append(result)
+        if result['status'] == 'success':
+            success_count += 1
 
     return jsonify({
         'success': True,
@@ -163,115 +204,38 @@ def import_html_file():
         'success_count': success_count
     })
 
-def _process_single_file_import(file, user_id, guest_id):
-    """Helper to process a single file import within the batch."""
-    try:
-        file_content = file.read().decode('utf-8')
-        
-        # Route to appropriate parser based on file extension
-        if file.filename.lower().endswith('.csv'):
-            parsed = parse_course_csv(file_content)
-        else:
-            parsed = parse_vtop_html(file_content)
-        
-        if not parsed['course']:
-            return {'filename': file.filename, 'status': 'error', 'message': 'Could not parse course info'}
-        
-        course_data = parsed['course']
-        print(f"DEBUG: Parsed course: {course_data}")
-        print(f"DEBUG: Parsed slots count: {len(parsed['slots'])}")
-        
-        # Check if course already exists FOR THIS USER
-        # Use upper case to ensure consistency
-        code_upper = course_data['code'].upper()
-        query = Course.query.filter_by(code=code_upper)
-        if user_id:
-            query = query.filter_by(user_id=user_id)
-        else:
-            query = query.filter_by(guest_id=guest_id)
-            
-        course = query.first()
-        
-        # Start Transaction for this file
-        if not course:
-            course = Course(
-                code=code_upper,
-                name=course_data['name'],
-                l=course_data['l'],
-                t=course_data['t'],
-                p=course_data['p'],
-                j=course_data['j'],
-                c=course_data['c'],
-                course_type=course_data['course_type'],
-                category=course_data['category'],
-                user_id=user_id,
-                guest_id=guest_id
-            )
-            db.session.add(course)
-            db.session.flush()
-        
-        # --- Batch Process Faculties ---
-        faculty_names = set(s['faculty'] for s in parsed['slots'] if s['faculty'])
-        
-        # Note: In a batch loop, re-querying faculties every time is safe.
-        existing_faculties = Faculty.query.filter(Faculty.name.in_(faculty_names)).all()
-        faculty_map = {f.name: f for f in existing_faculties}
-        
-        missing_names = faculty_names - set(faculty_map.keys())
-        if missing_names:
-            new_facs = []
-            for name in missing_names:
-                f = Faculty(name=name)
-                new_facs.append(f)
-            
-            db.session.add_all(new_facs)
-            db.session.flush()
-            
-            for f in new_facs:
-                faculty_map[f.name] = f
+def _process_single_file_import(file, filename, user_id, guest_id):
+    """Validate one file, save it to the owner's timetable data, then share it."""
+    course, slots, rejected = _read_and_parse(file)
+    if not slots:
+        raise ValidationError('No valid faculty/slot rows were found in this file.')
 
-        # --- Batch Process Slots ---
-        existing_slots = Slot.query.filter_by(course_id=course.id).all()
-        existing_slot_signatures = {(s.slot_code, s.venue) for s in existing_slots}
-        print(f"DEBUG: Existing slot signatures: {existing_slot_signatures}")
-        
-        slots_to_add = []
-        for slot_data in parsed['slots']:
-            signature = (slot_data['slot_code'], slot_data['venue'])
-            print(f"DEBUG: Checking slot signature: {signature}")
-            
-            if signature not in existing_slot_signatures:
-                faculty = faculty_map.get(slot_data['faculty'])
-                new_slot = Slot(
-                    slot_code=slot_data['slot_code'],
-                    course_id=course.id,
-                    faculty_id=faculty.id if faculty else None,
-                    venue=slot_data['venue'],
-                    available_seats=slot_data['available_seats'],
-                    total_seats=70,
-                    class_nbr=slot_data.get('class_nbr')
-                )
-                slots_to_add.append(new_slot)
-                existing_slot_signatures.add(signature)
-        
-        if slots_to_add:
-            db.session.add_all(slots_to_add)
-            slots_added = len(slots_to_add)
-        else:
-            slots_added = 0
-        
-        print(f"DEBUG: Slots to add: {slots_added}")
-        
-        # Commit per file to avoid huge transactions and ensure partial batch success
-        db.session.commit()
-        
-        return {
-            'filename': file.filename,
-            'status': 'success',
-            'course_code': course_data['code'],
-            'slots_added': slots_added
-        }
-        
+    saved_course, slots_added = save_course_for_owner(course, slots, user_id, guest_id)
+    db.session.commit()
+
+    _share(course, slots, user_id, guest_id)
+
+    result = {
+        'filename': filename,
+        'status': 'success',
+        'course_code': saved_course.code,
+        'slots_added': slots_added
+    }
+    if rejected:
+        result['rejected_rows'] = rejected
+    return result
+
+
+def _share(course, slots, user_id, guest_id):
+    """Copy an import into the shared library. Never makes the import itself fail."""
+    # Guests are anonymous and easy to repeat, so their contributions are rate limited
+    from utils.security import is_rate_limited
+    if session.get('is_impersonating'):
+        return  # An admin viewing as someone else must not contribute in their name
+    if not user_id and is_rate_limited('shared-guest-upload', 20, 3600):
+        return
+    try:
+        shared_library.contribute(course, slots, user_id, guest_id)
     except Exception as e:
         db.session.rollback()
-        raise e # Re-raise to be caught by the loop handler
+        current_app.logger.warning('Shared library contribution skipped: %s', e)

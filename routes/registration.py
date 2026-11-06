@@ -4,6 +4,19 @@ from models.slot import get_slot_timing
 
 registration_bp = Blueprint('registration', __name__)
 
+
+def slot_belongs_to_caller(slot):
+    """True when the slot is part of a course owned by the current user or guest."""
+    course = slot.course if slot else None
+    if not course:
+        return False
+    if session.get('user_id'):
+        return course.user_id == session['user_id']
+    if session.get('guest_id'):
+        return course.guest_id == session['guest_id']
+    return False
+
+
 def get_current_registrations_query():
     """Helper to get registrations query based on current session."""
     query = None
@@ -38,7 +51,7 @@ def get_registrations():
 @registration_bp.route('/', methods=['POST'])
 def register_course():
     """Register a new course slot."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     slot_id = data.get('slot_id')
     
     if not slot_id:
@@ -48,9 +61,9 @@ def register_course():
     if query is None:
         return jsonify({'error': 'No active session'}), 401
     
-    # Check if slot exists
+    # Check if slot exists (and is one of the caller's own slots)
     slot = Slot.query.get(slot_id)
-    if not slot:
+    if not slot or not slot_belongs_to_caller(slot):
         return jsonify({'error': 'Slot not found'}), 404
     
     # Check if already registered for this course (scoped to user)
@@ -138,7 +151,7 @@ def bulk_delete_registrations():
 @registration_bp.route('/<int:reg_id>', methods=['PUT'])
 def update_registration(reg_id):
     """Update registration to a different slot."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     new_slot_id = data.get('slot_id')
     
     if not new_slot_id:
@@ -181,7 +194,7 @@ def update_registration(reg_id):
 @registration_bp.route('/check-clash', methods=['POST'])
 def check_clash():
     """Check if a slot would clash with existing registrations."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     slot_id = data.get('slot_id')
     exclude_reg_id = data.get('exclude_reg_id') # Optional exclusion
     
@@ -189,7 +202,7 @@ def check_clash():
         return jsonify({'error': 'slot_id is required'}), 400
     
     slot = Slot.query.get(slot_id)
-    if not slot:
+    if not slot or not slot_belongs_to_caller(slot):
         return jsonify({'error': 'Slot not found'}), 404
     
     result = check_slot_clashes(slot, exclude_reg_id=exclude_reg_id)
@@ -198,7 +211,7 @@ def check_clash():
 @registration_bp.route('/check-clash-batch', methods=['POST'])
 def check_clash_batch():
     """Check clashes for multiple slots in one go."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     slot_ids = data.get('slot_ids', [])
     exclude_reg_id = data.get('exclude_reg_id')
     
@@ -208,7 +221,7 @@ def check_clash_batch():
     # Get all slots in one query to avoid N+1 inside the loop if possible
     # But check_slot_clashes takes a slot object. 
     # Let's fetch all slots first.
-    slots = Slot.query.filter(Slot.id.in_(slot_ids)).all()
+    slots = [s for s in Slot.query.filter(Slot.id.in_(slot_ids)).all() if slot_belongs_to_caller(s)]
     
     results = {}
     

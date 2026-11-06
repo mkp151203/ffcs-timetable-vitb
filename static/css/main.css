@@ -1838,3 +1838,152 @@ kbd {
     font-size: 0.85rem;
     color: #718096;
 }
+
+/* Logout is a POST form so other sites can't log users out */
+.logout-form {
+    display: inline;
+    margin: 0;
+}
+
+button.btn-logout {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+/* ==================== Shared course library ==================== */
+.shared-icon {
+    background-color: rgba(16, 152, 120, 0.1);
+    color: #10987a;
+}
+
+.shared-modal-content {
+    max-width: 820px;
+    width: 95%;
+}
+
+.shared-search-row {
+    margin: 12px 0;
+}
+
+.shared-status {
+    font-size: 0.9rem;
+    color: var(--text-muted, #718096);
+    margin-bottom: 8px;
+    min-height: 1.2em;
+}
+
+.shared-status.error {
+    color: var(--danger-color, #e53e3e);
+}
+
+.shared-results {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.shared-course {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+.shared-course-title {
+    margin: 0 0 8px;
+    font-size: 1rem;
+}
+
+.shared-version {
+    border-top: 1px solid #edf2f7;
+    padding: 10px 0 4px;
+}
+
+.shared-version:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+.shared-version-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #4a5568;
+}
+
+.shared-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #edf2f7;
+    color: #4a5568;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.shared-badge-top {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.shared-badge-verified {
+    background: #bee3f8;
+    color: #2a4365;
+}
+
+.shared-badge-warn {
+    background: #fefcbf;
+    color: #744210;
+}
+
+.shared-version-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.shared-slots-toggle {
+    margin-top: 6px;
+    font-size: 0.85rem;
+}
+
+.shared-slots-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-top: 6px;
+}
+
+.shared-slots-table th,
+.shared-slots-table td {
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.shared-other-versions summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    margin-top: 8px;
+}
+
+.admin-flash {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    background: #ebf8ff;
+    color: #2a4365;
+}
+
+.admin-flash-success {
+    background: #f0fff4;
+    color: #22543d;
+}

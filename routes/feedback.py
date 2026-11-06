@@ -1,4 +1,6 @@
 from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for, flash, abort
+from utils.security import server_error
+from utils.validation import ValidationError, validate_free_text
 from datetime import datetime
 from models import db, Feedback, User, Rating
 
@@ -12,14 +14,13 @@ def submit_feedback():
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     message = data.get('message')
 
-    if not message or not message.strip():
-        return jsonify({'error': 'Message cannot be empty'}), 400
-
-    if len(message) > 2000:
-        return jsonify({'error': 'Message exceeds 2000 characters'}), 400
+    try:
+        message = validate_free_text(message, 'Message', 2000)
+    except ValidationError as e:
+        return jsonify({'error': str(e)}), 400
 
     # Rate limiting: Check last feedback from this user
     last_feedback = Feedback.query.filter_by(user_id=session['user_id']).order_by(Feedback.created_at.desc()).first()
@@ -43,7 +44,7 @@ def submit_feedback():
         return jsonify({'success': True, 'message': 'Feedback submitted successfully!'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)
 
 @feedback_bp.route('/admin/feedback')
 def view_feedback():
@@ -94,4 +95,4 @@ def delete_feedback(feedback_id):
         return jsonify({'success': True, 'message': 'Feedback deleted successfully'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return server_error(e)

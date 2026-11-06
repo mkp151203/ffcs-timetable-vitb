@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Shared Course Library - Admin{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+
+    <div style="margin-bottom: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.list_users') }}" class="btn btn-info">
+            <i class="fas fa-arrow-left"></i> Back to Admin Panel
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="admin-flash admin-flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <h2><i class="fas fa-share-nodes"></i> Shared Course Library</h2>
+                <form action="{{ url_for('admin.shared_library_reset') }}" method="POST"
+                    data-confirm="Empty the whole shared library? Students' own timetables are not affected."
+                    onsubmit="return confirm(this.dataset.confirm);">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i> Reset library
+                    </button>
+                </form>
+            </div>
+            <p style="color: #666; margin: 8px 0;">
+                {{ stats.versions }} versions, {{ stats.events }} uploads and verifications.
+                Data with no activity for 60 days is removed automatically.
+            </p>
+            <form method="GET" action="{{ url_for('admin.shared_library_page') }}" style="margin-top: 10px;">
+                <input type="text" name="q" value="{{ query }}" class="form-control"
+                    placeholder="Search by course code or name..." style="max-width: 400px; display: inline-block;">
+                <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            </form>
+        </div>
+
+        <div class="card-body">
+            {% if courses %}
+            <div class="table-responsive">
+                <table class="table" style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #f8f9fa;">
+                        <tr>
+                            <th style="padding: 10px; text-align: left;">Course</th>
+                            <th style="padding: 10px; text-align: center;">Faculty / slots</th>
+                            <th style="padding: 10px; text-align: center;">Uploads</th>
+                            <th style="padding: 10px; text-align: center;">Verified</th>
+                            <th style="padding: 10px; text-align: center;">Score</th>
+                            <th style="padding: 10px; text-align: left;">Last activity</th>
+                            <th style="padding: 10px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in courses %}
+                        {% for v in course.versions %}
+                        <tr style="border-bottom: 1px solid #dee2e6; {% if v.hidden %}opacity: 0.55;{% endif %}">
+                            <td style="padding: 10px;">
+                                <strong>{{ v.code }}</strong> {{ v.name }}
+                                {% if loop.first and course.versions|length > 1 %}<span class="shared-badge shared-badge-top">Top</span>{% endif %}
+                                {% if v.hidden %}<span class="shared-badge">Hidden</span>{% endif %}
+                                {% if not v.confirmed %}<span class="shared-badge">Guests only</span>{% endif %}
+                            </td>
+                            <td style="padding: 10px; text-align: center;">{{ v.faculty_count }} / {{ v.slot_count }}</td>
+                            <td style="padding: 10px; text-align: center;">{{ v.uploads }}</td>
+                            <td style="padding: 10px; text-align: center;">{{ v.verifications }}</td>
+                            <td style="padding: 10px; text-align: center;">{{ v.score }}</td>
+                            <td style="padding: 10px;">{{ v.updated_at[:10] }}</td>
+                            <td style="padding: 10px; text-align: center; white-space: nowrap;">
+                                <form action="{{ url_for('admin.shared_library_action', entry_id=v.id, action='unhide' if v.hidden else 'hide') }}"
+                                    method="POST" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="q" value="{{ query }}">
+                                    <button type="submit" class="btn btn-warning btn-sm">{{ 'Unhide' if v.hidden else 'Hide' }}</button>
+                                </form>
+                                <form action="{{ url_for('admin.shared_library_action', entry_id=v.id, action='delete') }}"
+                                    method="POST" style="display: inline;"
+                                    onsubmit="return confirm('Delete this version permanently?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="q" value="{{ query }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                <p>{% if query %}No shared data matches "{{ query }}".{% else %}The shared library is empty.{% endif %}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

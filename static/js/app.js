@@ -2,6 +2,21 @@
  * FFCS Timetable Builder - Main Application JavaScript
  */
 
+// ==================== Safe HTML helpers ====================
+
+// Escape any value before it goes into HTML text or an attribute
+function esc(value) {
+    if (value === null || value === undefined) return '';
+    return String(value).replace(/[&<>"'`]/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;'
+    })[ch]);
+}
+
+// IDs placed inside onclick handlers: keep digits only so they can never break out of the JS string
+function jsId(value) {
+    return String(value === null || value === undefined ? '' : value).replace(/[^0-9]/g, '');
+}
+
 // Current state
 let selectedCourse = null;
 let selectedSlotId = null;
@@ -85,13 +100,13 @@ async function refreshTimetableGrid() {
                 cell.classList.remove('selected');
                 cell.dataset.registrationId = info.registration_id;
                 cell.style.backgroundColor = info.color;
-                cell.innerHTML = `<div class="slot-content"><span class="slot-code">${slotCode}</span><br><span class="course-code">${info.course_code}</span><br><span class="slot-venue">${info.venue}</span></div>`;
+                cell.innerHTML = `<div class="slot-content"><span class="slot-code">${esc(slotCode)}</span><br><span class="course-code">${esc(info.course_code)}</span><br><span class="slot-venue">${esc(info.venue)}</span></div>`;
             } else {
                 // Cell is empty — clear it
                 cell.classList.remove('registered', 'selected');
                 delete cell.dataset.registrationId;
                 cell.style.backgroundColor = '';
-                cell.innerHTML = `<div class="slot-empty">${slotCode}</div>`;
+                cell.innerHTML = `<div class="slot-empty">${esc(slotCode)}</div>`;
             }
         }
 
@@ -153,10 +168,10 @@ function showFacultyModal(course, slots) {
     // Populate course info
     courseInfoBody.innerHTML = `
         <tr>
-            <td>${course.code} - ${course.name}</td>
-            <td>${course.ltpjc}</td>
-            <td>${course.course_type}</td>
-            <td>${course.category}</td>
+            <td>${esc(course.code)} - ${esc(course.name)}</td>
+            <td>${esc(course.ltpjc)}</td>
+            <td>${esc(course.course_type)}</td>
+            <td>${esc(course.category)}</td>
         </tr>
     `;
 
@@ -207,19 +222,19 @@ function showFacultyModal(course, slots) {
             return `
                 <tr class="${rowClass}" data-slot-id="${slot.id}" style="${isCurrentSlot ? 'background-color: #d1e7dd;' : ''}">
                     <td class="slot-code">
-                        ${slot.slot_code}
+                        ${esc(slot.slot_code)}
                         ${isCurrentSlot ? '<span class="badge bg-success" style="font-size: 0.7em; margin-left: 5px;">Current</span>' : ''}
                     </td>
-                    <td class="venue">${slot.venue}</td>
-                    <td class="faculty-name">${slot.faculty_name || 'TBA'}</td>
+                    <td class="venue">${esc(slot.venue)}</td>
+                    <td class="faculty-name">${esc(slot.faculty_name || 'TBA')}</td>
                     <td class="clash-status" id="clash-${slot.id}"></td>
                     <td>
                         ${isFull ?
                     '<span class="full-label">Full</span>' :
                     (isCurrentSlot ?
                         '<span class="text-success"><i class="fas fa-check-circle"></i> Registered</span>' :
-                        `<input type="radio" name="slotSelection" value="${slot.id}" onchange="selectSlot('${slot.id}')">
-                         <span class="available-seats ${seatsClass}">${slot.available_seats}</span>`
+                        `<input type="radio" name="slotSelection" value="${jsId(slot.id)}" onchange="selectSlot('${jsId(slot.id)}')">
+                         <span class="available-seats ${seatsClass}">${esc(slot.available_seats)}</span>`
                     )
                 }
                     </td>
@@ -531,7 +546,7 @@ async function loadRegisteredCoursesList(preloadedData = null) {
                 ${Object.entries(courseColors).map(([code, color]) => `
                     <span class="legend-item">
                         <span class="legend-color" style="background-color: ${color};"></span>
-                        ${code}
+                        ${esc(code)}
                     </span>
                 `).join('')}
             </div>
@@ -567,19 +582,19 @@ async function loadRegisteredCoursesList(preloadedData = null) {
             const color = courseColors[courseCode] || '#90EE90';
             return `
                         <tr>
-                            <td><input type="checkbox" class="reg-checkbox" value="${reg.id}" onchange="updateBulkDeleteState()"></td>
+                            <td><input type="checkbox" class="reg-checkbox" value="${jsId(reg.id)}" onchange="updateBulkDeleteState()"></td>
                             <td><span class="row-color-indicator" style="background-color: ${color};"></span></td>
-                            <td><strong>${courseCode}</strong></td>
-                            <td>${reg.slot?.course?.name || 'N/A'}</td>
-                            <td>${reg.slot?.slot_code || 'N/A'}</td>
-                            <td>${reg.slot?.venue || 'N/A'}</td>
-                            <td>${reg.slot?.faculty_name || 'TBA'}</td>
-                            <td>${reg.slot?.course?.c || 0}</td>
+                            <td><strong>${esc(courseCode)}</strong></td>
+                            <td>${esc(reg.slot?.course?.name || 'N/A')}</td>
+                            <td>${esc(reg.slot?.slot_code || 'N/A')}</td>
+                            <td>${esc(reg.slot?.venue || 'N/A')}</td>
+                            <td>${esc(reg.slot?.faculty_name || 'TBA')}</td>
+                            <td>${esc(reg.slot?.course?.c || 0)}</td>
                             <td>
-                                <button class="edit-btn" onclick="openEditRegistrationModal('${reg.slot?.course?.id}', '${reg.id}', '${reg.slot?.id}')" title="Edit Slot/Faculty">
+                                <button class="edit-btn" onclick="openEditRegistrationModal('${jsId(reg.slot?.course?.id)}', '${jsId(reg.id)}', '${jsId(reg.slot?.id)}')" title="Edit Slot/Faculty">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="delete-btn" onclick="deleteRegistration('${reg.id}', this)" title="Remove">
+                                <button class="delete-btn" onclick="deleteRegistration('${jsId(reg.id)}', this)" title="Remove">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -700,13 +715,13 @@ function viewRegisteredCourses() {
                     <tbody>
                         ${data.registrations.map(reg => `
                             <tr>
-                                <td>${reg.slot?.course?.code || 'N/A'}</td>
-                                <td>${reg.slot?.course?.name || 'N/A'}</td>
-                                <td>${reg.slot?.slot_code || 'N/A'}</td>
-                                <td>${reg.slot?.venue || 'N/A'}</td>
-                                <td>${reg.slot?.course?.c || 0}</td>
+                                <td>${esc(reg.slot?.course?.code || 'N/A')}</td>
+                                <td>${esc(reg.slot?.course?.name || 'N/A')}</td>
+                                <td>${esc(reg.slot?.slot_code || 'N/A')}</td>
+                                <td>${esc(reg.slot?.venue || 'N/A')}</td>
+                                <td>${esc(reg.slot?.course?.c || 0)}</td>
                                 <td>
-                                    <button class="delete-btn" onclick="deleteRegistration('${reg.id}', this); closeRegisteredModal();">
+                                    <button class="delete-btn" onclick="deleteRegistration('${jsId(reg.id)}', this); closeRegisteredModal();">
                                         <i class="fas fa-trash"></i> Remove
                                     </button>
                                 </td>
@@ -791,19 +806,19 @@ function viewAllCourses() {
                 return `
                             <tr class="${rowClass}">
                                 <td style="text-align: center;">
-                                    <input type="checkbox" class="course-checkbox" value="${course.id}" onclick="toggleCourseSelection('${course.id}')">
+                                    <input type="checkbox" class="course-checkbox" value="${jsId(course.id)}" onclick="toggleCourseSelection('${jsId(course.id)}')">
                                 </td>
-                                <td><strong>${course.code}</strong></td>
-                                <td>${course.name}</td>
-                                <td>${course.ltpjc}</td>
-                                <td>${course.course_type || '-'}</td>
+                                <td><strong>${esc(course.code)}</strong></td>
+                                <td>${esc(course.name)}</td>
+                                <td>${esc(course.ltpjc)}</td>
+                                <td>${esc(course.course_type || '-')}</td>
                                 <td>
                                     <div style="display: flex; gap: 5px; align-items: center;">
                                         ${isRegistered ?
-                        `<button class="btn btn-warning btn-sm" onclick="openEditRegistrationModal('${course.id}', '${registration.id}', '${registration.slot.id}'); closeAllCoursesModal();" title="Modify Faculty">
+                        `<button class="btn btn-warning btn-sm" onclick="openEditRegistrationModal('${jsId(course.id)}', '${jsId(registration.id)}', '${jsId(registration.slot.id)}'); closeAllCoursesModal();" title="Modify Faculty">
                                                 <i class="fas fa-edit"></i> Modify
                                             </button>` :
-                        `<button class="btn btn-primary btn-sm" onclick="selectCourse('${course.id}'); closeAllCoursesModal();">
+                        `<button class="btn btn-primary btn-sm" onclick="selectCourse('${jsId(course.id)}'); closeAllCoursesModal();">
                                                 <i class="fas fa-plus"></i> Add
                                             </button>`
                     }
@@ -1008,9 +1023,9 @@ async function previewHtmlFiles(files) {
         if (response.ok) {
             for (const res of data.results) {
                 if (res.status === 'success') {
-                    previews.push(`<div class="preview-item"><strong>${res.course.code}</strong> - ${res.course.name} (${res.slot_count} slots)</div>`);
+                    previews.push(`<div class="preview-item"><strong>${esc(res.course.code)}</strong> - ${esc(res.course.name)} (${esc(res.slot_count)} slots)</div>`);
                 } else {
-                    previews.push(`<div class="preview-error-item">${res.filename}: ${res.error}</div>`);
+                    previews.push(`<div class="preview-error-item">${esc(res.filename)}: ${esc(res.error)}</div>`);
                     errors++;
                 }
             }
@@ -1062,15 +1077,15 @@ async function importHtmlFiles() {
             // Render results
             const resultItems = data.results.map(res => {
                 if (res.status === 'success') {
-                    return `<div class="import-success-item"><i class="fas fa-check"></i> ${res.filename}: Imported ${res.course_code} (${res.slots_added} slots)</div>`;
+                    return `<div class="import-success-item"><i class="fas fa-check"></i> ${esc(res.filename)}: Imported ${esc(res.course_code)} (${esc(res.slots_added)} slots)</div>`;
                 } else {
-                    return `<div class="import-error-item"><i class="fas fa-times"></i> ${res.filename}: ${res.message}</div>`;
+                    return `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(res.filename)}: ${esc(res.message)}</div>`;
                 }
             }).join('');
 
             statusDiv.innerHTML = `
                 <div class="import-results">
-                    <div class="import-summary">${data.summary}</div>
+                    <div class="import-summary">${esc(data.summary)}</div>
                     ${resultItems}
                 </div>
             `;
@@ -1090,7 +1105,7 @@ async function importHtmlFiles() {
             }
 
         } else {
-            statusDiv.innerHTML = `<div class="import-error-item">Error: ${data.error || 'Upload failed'}</div>`;
+            statusDiv.innerHTML = `<div class="import-error-item">Error: ${esc(data.error || 'Upload failed')}</div>`;
             importBtn.disabled = false;
         }
 
@@ -1126,8 +1141,8 @@ async function openManualEntryModal() {
             const nameList = document.getElementById('manualCourseNameList');
             const facultyList = document.getElementById('manualFacultyList');
             
-            if (codeList) codeList.innerHTML = data.course_codes.map(c => `<option value="${c}">`).join('');
-            if (nameList) nameList.innerHTML = data.course_names.map(n => `<option value="${n}">`).join('');
+            if (codeList) codeList.innerHTML = data.course_codes.map(c => `<option value="${esc(c)}">`).join('');
+            if (nameList) nameList.innerHTML = data.course_names.map(n => `<option value="${esc(n)}">`).join('');
             if (facultyList) facultyList.innerHTML = ''; // Don't show all by default
             window.MANUAL_COURSE_MAP = data.course_map || {};
             window.MANUAL_NAME_TO_CODE_MAP = data.name_to_code_map || {};
@@ -1164,7 +1179,7 @@ function updateManualFacultyList() {
     }
     
     if (faculties.length > 0) {
-        facultyList.innerHTML = faculties.map(f => `<option value="${f}">`).join('');
+        facultyList.innerHTML = faculties.map(f => `<option value="${esc(f)}">`).join('');
     } else {
         facultyList.innerHTML = '';
     }
@@ -1391,14 +1406,14 @@ async function populateTeacherPreferences() {
         let facultyOptions = '<option value="">-- No Preference --</option>';
         if (course.faculties && course.faculties.length > 0) {
             course.faculties.forEach(f => {
-                facultyOptions += `<option value="${f}">${f}</option>`;
+                facultyOptions += `<option value="${esc(f)}">${esc(f)}</option>`;
             });
         }
 
         html += `
             <div class="teacher-pref-item" data-course-id="${course.id}">
                 <div class="teacher-course-header">
-                    <span>${course.code} - ${course.name}</span>
+                    <span>${esc(course.code)} - ${esc(course.name)}</span>
                     <span style="font-size:12px; font-weight:normal; color:#666;">${course.faculties.length} Faculty Options</span>
                 </div>
                 <div class="teacher-rank-row">
@@ -1511,7 +1526,7 @@ async function loadAvailableCoursesForGeneration() {
         const data = await response.json();
 
         if (!response.ok) {
-            listDiv.innerHTML = `<p class="loading-text">Error: ${data.error}</p>`;
+            listDiv.innerHTML = `<p class="loading-text">Error: ${esc(data.error)}</p>`;
             return;
         }
 
@@ -1526,15 +1541,15 @@ async function loadAvailableCoursesForGeneration() {
         // Render course list
         listDiv.innerHTML = generateAvailableCourses.map(course => `
             <div class="course-select-item ${course.is_registered ? 'registered' : ''}">
-                <input type="checkbox" value="${course.id}" 
+                <input type="checkbox" value="${jsId(course.id)}" 
                     ${course.is_registered ? 'disabled' : ''} 
                     onchange="updateGenerateCredits()">
                 <div class="course-select-info">
-                    <span class="course-select-code">${course.code}</span>
-                    <span class="course-select-name">${course.name}</span>
+                    <span class="course-select-code">${esc(course.code)}</span>
+                    <span class="course-select-name">${esc(course.name)}</span>
                     ${course.is_registered ? '<span class="badge-registered">(Already registered)</span>' : ''}
                 </div>
-                <span class="course-select-credits">${course.credits} cr</span>
+                <span class="course-select-credits">${esc(course.credits)} cr</span>
             </div>
         `).join('');
 
@@ -1555,7 +1570,7 @@ function populateFacultySelects() {
     const prefSelect = document.getElementById('preferredFaculties');
     const avoidSelect = document.getElementById('avoidedFaculties');
 
-    const options = generateAllFaculties.map(f => `<option value="${f}">${f}</option>`).join('');
+    const options = generateAllFaculties.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
 
     prefSelect.innerHTML = options;
     avoidSelect.innerHTML = options;
@@ -1771,7 +1786,7 @@ async function generateTimetable() {
 
         if (!result.ok) {
             console.error('Generate error debug:', JSON.stringify(data.debug, null, 2));  // DEBUG
-            statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Error: ${data.error}`;
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Error: ${esc(data.error)}`;
             return;
         }
 
@@ -1784,7 +1799,7 @@ async function generateTimetable() {
             let msg = `<i class="fas fa-check-circle"></i> Found ${generateSuggestions.length} timetable option(s).`;
 
             if (data.warnings && data.warnings.length > 0) {
-                const warningsHtml = data.warnings.map(w => `<li>${w}</li>`).join('');
+                const warningsHtml = data.warnings.map(w => `<li>${esc(w)}</li>`).join('');
                 msg += `
                     <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: left; font-size: 0.9em;">
                         <strong><i class="fas fa-exclamation-triangle"></i> Data Integrity Warnings:</strong>
@@ -1867,7 +1882,7 @@ async function countTimetables() {
                 countText.innerHTML = `<span class="count-number">${count}</span> valid patterns available`;
             }
         } else {
-            countText.innerHTML = 'Error: ' + (data.error || 'Unknown error');
+            countText.innerHTML = 'Error: ' + esc(data.error || 'Unknown error');
         }
 
     } catch (error) {
@@ -1959,7 +1974,7 @@ function renderSuggestionCard(suggestion, index, targetId, options = {}) {
         const color = courseColors[s.course_code] || '#eee';
         return `<div class="suggestion-slot-line" style="display: flex; align-items: center;">
             <span style="display: inline-block; width: 12px; height: 12px; background-color: ${color}; border: 1px solid #999; margin-right: 8px; flex-shrink: 0;"></span>
-            <span>${s.course_code}: ${teacherName} (${s.slot_code})</span>
+            <span>${esc(s.course_code)}: ${esc(teacherName)} (${esc(s.slot_code)})</span>
         </div>`;
     }).join('');
 
@@ -2133,9 +2148,9 @@ function renderMiniTimetable(suggestion, courseColors = {}, targetId = 'miniTime
                 const cell = grid[d][p.num];
                 if (cell) {
                     const bgColor = courseColors[cell.code] || '#90EE90';
-                    html += `<td class="slot-filled" style="background-color: ${bgColor};" title="${cell.code} - ${cell.faculty || 'TBA'} @ ${cell.venue || 'TBA'}">
-                        <div class="slot-code">${cell.code}</div>
-                        <div class="slot-venue">${cell.venue || ''}</div>
+                    html += `<td class="slot-filled" style="background-color: ${bgColor};" title="${esc(cell.code)} - ${esc(cell.faculty || 'TBA')} @ ${esc(cell.venue || 'TBA')}">
+                        <div class="slot-code">${esc(cell.code)}</div>
+                        <div class="slot-venue">${esc(cell.venue || '')}</div>
                     </td>`;
                 } else {
                     html += '<td class="slot-empty"></td>';
@@ -2404,6 +2419,7 @@ function renderCurrentSavedCard() {
     let slotIds = [];
     try {
         slotIds = typeof item.slot_ids === 'string' ? JSON.parse(item.slot_ids) : item.slot_ids;
+        savedSlotPayloads[jsId(item.id)] = slotIds;
     } catch (e) {
         console.error('Parse error:', e);
         previewDiv.innerHTML = '<div class="error-text">Error loading saved data</div>';
@@ -2419,7 +2435,7 @@ function renderCurrentSavedCard() {
         .then(r => r.json())
         .then(data => {
             if (data.error) {
-                previewDiv.innerHTML = `<div class="error-text">Error: ${data.error}</div>`;
+                previewDiv.innerHTML = `<div class="error-text">Error: ${esc(data.error)}</div>`;
                 return;
             }
 
@@ -2448,14 +2464,14 @@ function renderCurrentSavedCard() {
                 const color = courseColors[s.course_code] || '#eee';
                 return `<div class="suggestion-slot-line" style="display: flex; align-items: center;">
                     <span style="display: inline-block; width: 12px; height: 12px; background-color: ${color}; border: 1px solid #999; margin-right: 8px;"></span>
-                    <span>${s.course_code}: ${s.faculty_name || 'TBA'} (${s.slot_code})</span>
+                    <span>${esc(s.course_code)}: ${esc(s.faculty_name || 'TBA')} (${esc(s.slot_code)})</span>
                 </div>`;
             }).join('');
 
             detailsDiv.innerHTML = `
                 <div class="suggestion-card" style="border-color: #3498db; background: #f8ffff;">
                     <div class="suggestion-header">
-                        <span class="suggestion-rank">${item.name}</span>
+                        <span class="suggestion-rank">${esc(item.name)}</span>
                         <span class="suggestion-score">${suggestion.total_credits} cr</span>
                     </div>
                     <div class="suggestion-slots-list">${slotLines}</div>
@@ -2463,10 +2479,10 @@ function renderCurrentSavedCard() {
                         Saved on ${new Date(item.created_at).toLocaleDateString()}
                     </div>
                     <div class="suggestion-actions" style="margin-top: 10px;">
-                        <button class="btn btn-danger btn-sm" onclick="deleteSavedTimetable('${item.id}')">
+                        <button class="btn btn-danger btn-sm" onclick="deleteSavedTimetable('${jsId(item.id)}')">
                             <i class="fas fa-trash"></i> Delete
                         </button>
-                        <button class="btn btn-success" onclick='applySavedTimetable(${JSON.stringify(slotIds)})'>
+                        <button class="btn btn-success" onclick="applySavedTimetableById('${jsId(item.id)}')">
                             <i class="fas fa-check"></i> Apply Timetable
                         </button>
                     </div>
@@ -2546,6 +2562,15 @@ async function deleteSavedTimetable(id) {
     }
 }
 
+// Slot lists of the saved timetables on screen, by saved timetable id (never put into onclick attributes)
+const savedSlotPayloads = {};
+
+function applySavedTimetableById(id) {
+    const slots = savedSlotPayloads[jsId(id)];
+    if (!slots) return;
+    applySavedTimetable(slots);
+}
+
 function applySavedTimetable(slotIds) {
     if (!confirm('Apply this timetable? This will replace your current registration.')) return;
 
@@ -2616,7 +2641,7 @@ function previewSavedTimetable(item) {
         .then(r => r.json())
         .then(data => {
             if (data.error) {
-                container.innerHTML = `<div class="error-text">Error: ${data.error}</div>`;
+                container.innerHTML = `<div class="error-text">Error: ${esc(data.error)}</div>`;
                 return;
             }
 
@@ -2755,7 +2780,7 @@ async function importCsvFile() {
                         <i class="fas fa-check-circle"></i>
                         <div>
                             <strong>Course imported successfully!</strong><br>
-                            ${result.course_code} - ${result.slots_added} faculty/slot options added
+                            ${esc(result.course_code)} - ${esc(result.slots_added)} faculty/slot options added
                         </div>
                     </div>
                 `;
@@ -2766,11 +2791,11 @@ async function importCsvFile() {
                     await refreshTimetableGrid();
                 }, 1500);
             } else {
-                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${result.message}</div>`;
+                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(result.message)}</div>`;
                 importBtn.disabled = false;
             }
         } else {
-            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${data.error || 'Import failed'}</div>`;
+            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             importBtn.disabled = false;
         }
 
@@ -3001,7 +3026,7 @@ async function submitManualImportData() {
                         <i class="fas fa-check-circle"></i>
                         <div>
                             <strong>Course imported successfully!</strong><br>
-                            ${result.course_code} - ${result.slots_added} faculty/slot options added
+                            ${esc(result.course_code)} - ${esc(result.slots_added)} faculty/slot options added
                         </div>
                     </div>
                 `;
@@ -3013,11 +3038,11 @@ async function submitManualImportData() {
                     alert(`Course imported successfully! ${result.course_code} - ${result.slots_added} faculty/slot options added.`);
                 }, 1500);
             } else {
-                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${result.message}</div>`;
+                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(result.message)}</div>`;
                 importBtn.disabled = false;
             }
         } else {
-            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${data.error || 'Import failed'}</div>`;
+            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             importBtn.disabled = false;
         }
     } catch (error) {
@@ -3047,6 +3072,9 @@ function openModifyCoursesModal() {
                 return;
             }
 
+            modifyCourseLookup = {};
+            data.courses.forEach(course => { modifyCourseLookup[course.id] = course; });
+
             content.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div>
@@ -3073,12 +3101,12 @@ function openModifyCoursesModal() {
                         ${data.courses.map(course => `
                             <tr>
                                 <td style="text-align: center;">
-                                    <input type="checkbox" class="course-checkbox" value="${course.id}" onclick="toggleCourseSelection('${course.id}')">
+                                    <input type="checkbox" class="course-checkbox" value="${jsId(course.id)}" onclick="toggleCourseSelection('${jsId(course.id)}')">
                                 </td>
-                                <td><strong>${course.code}</strong></td>
-                                <td>${course.name}</td>
+                                <td><strong>${esc(course.code)}</strong></td>
+                                <td>${esc(course.name)}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-primary" onclick="loadCourseForEdit('${course.id}', '${course.code}', '${course.name}', ${course.l}, ${course.t}, ${course.p}, ${course.j}, ${course.c}, '${course.course_type}', '${course.category}')">
+                                    <button class="btn btn-sm btn-primary" onclick="loadCourseForEditById('${jsId(course.id)}')">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
                                 </td>
@@ -3097,6 +3125,16 @@ function openModifyCoursesModal() {
             console.error(err);
             content.innerHTML = '<p>Error loading courses.</p>';
         });
+}
+
+// Courses shown in the "Select a Course to Modify" list, by id
+let modifyCourseLookup = {};
+
+function loadCourseForEditById(id) {
+    const course = modifyCourseLookup[id];
+    if (!course) return;
+    loadCourseForEdit(course.id, course.code, course.name, course.l, course.t, course.p, course.j, course.c,
+        course.course_type, course.category);
 }
 
 async function loadCourseForEdit(id, code, name, l, t, p, j, c, type, cat) {
@@ -3161,10 +3199,10 @@ function populateModifyReviewTable() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="modify-row-select" data-index="${index}"></td>
-            <td><input type="text" class="form-control modify-slot" value="${row.slot_code || ''}" placeholder="e.g., A11+A12"></td>
-            <td><input type="text" class="form-control modify-venue" value="${row.venue || ''}" placeholder="e.g., AB02-423"></td>
-            <td><input type="text" class="form-control modify-faculty" value="${row.faculty || ''}" placeholder="Faculty Name"></td>
-            <td><input type="number" class="form-control modify-seats" value="${row.available_seats || 70}" min="0"></td>
+            <td><input type="text" class="form-control modify-slot" value="${esc(row.slot_code || '')}" placeholder="e.g., A11+A12"></td>
+            <td><input type="text" class="form-control modify-venue" value="${esc(row.venue || '')}" placeholder="e.g., AB02-423"></td>
+            <td><input type="text" class="form-control modify-faculty" value="${esc(row.faculty || '')}" placeholder="Faculty Name"></td>
+            <td><input type="number" class="form-control modify-seats" value="${esc(row.available_seats || 70)}" min="0"></td>
             <td><button type="button" class="btn btn-sm btn-danger" onclick="modifyDeleteRow(this)"><i class="fas fa-trash"></i></button></td>
         `;
         tbody.appendChild(tr);
@@ -3255,13 +3293,13 @@ async function saveModifiedCourse() {
         const data = await response.json();
 
         if (response.ok) {
-            statusDiv.innerHTML = `<div class="import-success"><i class="fas fa-check"></i> ${data.message}</div>`;
+            statusDiv.innerHTML = `<div class="import-success"><i class="fas fa-check"></i> ${esc(data.message)}</div>`;
             setTimeout(async () => {
                 closeModifyCourseModal();
                 await refreshTimetableGrid();
             }, 1000);
         } else {
-            statusDiv.innerHTML = `<div class="import-error-item">Error: ${data.error}</div>`;
+            statusDiv.innerHTML = `<div class="import-error-item">Error: ${esc(data.error)}</div>`;
             saveBtn.disabled = false;
         }
     } catch (error) {
@@ -3468,16 +3506,14 @@ function populateOcrReviewTable() {
             <td><input type="text" value="${escapeHtml(row.slot_code)}" class="ocr-slot"></td>
             <td><input type="text" value="${escapeHtml(row.venue)}" class="ocr-venue"></td>
             <td><input type="text" value="${escapeHtml(row.faculty)}" class="ocr-faculty"></td>
-            <td><input type="number" value="${row.available_seats}" class="ocr-seats" min="0"></td>
+            <td><input type="number" value="${esc(row.available_seats)}" class="ocr-seats" min="0"></td>
             <td><button class="delete-row-btn" onclick="ocrDeleteRow(this)"><i class="fas fa-trash"></i></button></td>
         </tr>
     `).join('');
 }
 
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return esc(text);
 }
 
 function ocrAddRow() {
@@ -3597,7 +3633,7 @@ async function importOcrData() {
                         <i class="fas fa-check-circle"></i>
                         <div>
                             <strong>Course imported successfully!</strong><br>
-                            ${result.course_code} - ${result.slots_added} faculty/slot options added
+                            ${esc(result.course_code)} - ${esc(result.slots_added)} faculty/slot options added
                         </div>
                     </div>
                 `;
@@ -3609,11 +3645,11 @@ async function importOcrData() {
                     alert(`Course imported successfully! ${result.course_code} - ${result.slots_added} faculty/slot options added.`);
                 }, 1500);
             } else {
-                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${result.message}</div>`;
+                statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(result.message)}</div>`;
                 importBtn.disabled = false;
             }
         } else {
-            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${data.error || 'Import failed'}</div>`;
+            statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             importBtn.disabled = false;
         }
 
@@ -3707,6 +3743,7 @@ async function loadSavedTimetablesList() {
             let slotsObj = [];
             try {
                 slotsObj = typeof item.slot_ids === 'string' ? JSON.parse(item.slot_ids) : item.slot_ids;
+                savedSlotPayloads[jsId(item.id)] = slotsObj;
             } catch (e) {
                 console.error("Error parsing slot_ids", e);
             }
@@ -3714,7 +3751,7 @@ async function loadSavedTimetablesList() {
             return `
             <div class="saved-card">
                 <div class="saved-card-header">
-                    <h3>${item.name}</h3>
+                    <h3>${esc(item.name)}</h3>
                     <span class="saved-date">${new Date(item.created_at).toLocaleDateString()}</span>
                 </div>
                 <div class="saved-card-body">
@@ -3722,10 +3759,10 @@ async function loadSavedTimetablesList() {
                     <p><i class="fas fa-star"></i> ${item.total_credits} Credits</p>
                 </div>
                 <div class="saved-card-actions">
-                    <button class="btn btn-sm btn-success" onclick='applySavedTimetable(${JSON.stringify(slotsObj)})'>
+                    <button class="btn btn-sm btn-success" onclick="applySavedTimetableById('${jsId(item.id)}')">
                         <i class="fas fa-upload"></i> Load
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteSavedTimetable('${item.id}')">
+                    <button class="btn btn-sm btn-danger" onclick="deleteSavedTimetable('${jsId(item.id)}')">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
@@ -3816,15 +3853,15 @@ async function importCsvFile() {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            let successMsg = `<div class="import-success"><i class="fas fa-check-circle"></i> ${data.summary}</div>`;
+            let successMsg = `<div class="import-success"><i class="fas fa-check-circle"></i> ${esc(data.summary)}</div>`;
 
             if (data.results && data.results.length > 0) {
                 successMsg += '<ul class="import-results-list" style="max-height: 150px; overflow-y: auto; text-align: left; margin-top: 10px;">';
                 data.results.forEach(res => {
                     if (res.status === 'success') {
-                        successMsg += `<li style="color: green; list-style: none; font-size: 0.9em;"><i class="fas fa-check"></i> <strong>${res.course_code || res.filename}</strong>: ${res.slots_added} slots added</li>`;
+                        successMsg += `<li style="color: green; list-style: none; font-size: 0.9em;"><i class="fas fa-check"></i> <strong>${esc(res.course_code || res.filename)}</strong>: ${esc(res.slots_added)} slots added</li>`;
                     } else {
-                        successMsg += `<li style="color: red; list-style: none; font-size: 0.9em;"><i class="fas fa-times"></i> <strong>${res.filename}</strong>: ${res.message}</li>`;
+                        successMsg += `<li style="color: red; list-style: none; font-size: 0.9em;"><i class="fas fa-times"></i> <strong>${esc(res.filename)}</strong>: ${esc(res.message)}</li>`;
                     }
                 });
                 successMsg += '</ul>';
@@ -3842,7 +3879,7 @@ async function importCsvFile() {
             }
 
         } else {
-            if (statusDiv) statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${data.error || 'Import failed'}</div>`;
+            if (statusDiv) statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             if (importBtn) importBtn.disabled = false;
         }
 
@@ -3910,12 +3947,12 @@ async function submitFeedback() {
         const data = await response.json();
 
         if (response.ok) {
-            statusDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+            statusDiv.innerHTML = `<div class="alert alert-success">${esc(data.message)}</div>`;
             setTimeout(() => {
                 closeFeedbackModal();
             }, 2000);
         } else {
-            statusDiv.innerHTML = `<div class="alert alert-danger">${data.error || 'Failed to submit feedback.'}</div>`;
+            statusDiv.innerHTML = `<div class="alert alert-danger">${esc(data.error || 'Failed to submit feedback.')}</div>`;
         }
     } catch (error) {
         console.error('Feedback error:', error);

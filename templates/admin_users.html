@@ -13,6 +13,9 @@
                     <a href="{{ url_for('feedback.view_feedback') }}" class="btn btn-info" style="margin-right: 10px;">
                         <i class="fas fa-comments"></i> View Feedback
                     </a>
+                    <a href="{{ url_for('admin.shared_library_page') }}" class="btn btn-info" style="margin-right: 10px;">
+                        <i class="fas fa-share-nodes"></i> Shared Library
+                    </a>
                     <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Back to Home
                     </a>
@@ -92,7 +95,9 @@
                                 {% if item.user.email != config.ADMIN_EMAILS[0] %}
                                 <form action="{{ url_for('admin.impersonate_user', user_id=item.user.id) }}"
                                     method="POST"
-                                    onsubmit="return confirm('Are you sure you want to log in as {{ item.user.name }}?');">
+                                    data-confirm="Are you sure you want to log in as {{ item.user.name }}?"
+                                    onsubmit="return confirm(this.dataset.confirm);">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-warning btn-sm" title="Impersonate User">
                                         <i class="fas fa-user-secret"></i> Impersonate
                                     </button>
@@ -147,6 +152,7 @@
 
                                 <form action="{{ url_for('admin.impersonate_guest', guest_id=item.id) }}" method="POST"
                                     onsubmit="return confirm('Impersonate this guest session?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-warning btn-sm" title="Impersonate Guest">
                                         <i class="fas fa-mask"></i>
                                     </button>

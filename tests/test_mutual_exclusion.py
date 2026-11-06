@@ -4,6 +4,12 @@ import unittest
 import uuid
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Safety: never run against the database in .env (production). Use a throwaway SQLite file.
+import tempfile
+os.environ['DATABASE_URL'] = 'sqlite:///' + os.path.join(tempfile.mkdtemp(prefix='ffcs-test-'), 'test.db')
+os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+os.environ['FFCS_DISABLE_CLEANUP_THREAD'] = '1'
+
 from app import app, db
 from models import User, Course, Slot, Faculty, Registration
 
@@ -11,6 +17,7 @@ class TestMutualExclusion(unittest.TestCase):
     def setUp(self):
         self.app = app
         self.app.config['TESTING'] = True
+        self.app.config['CSRF_DISABLED'] = True  # these tests check clash rules, not CSRF
         # Note: app likely uses real DB, so we must rely on cleanup or uniqueness
         self.client = self.app.test_client()
         

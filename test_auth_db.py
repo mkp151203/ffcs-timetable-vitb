@@ -1,3 +1,8 @@
+import sys
+# Safety: this script writes a test user to the configured database (production in .env).
+if '--live' not in sys.argv:
+    raise SystemExit('This writes to the configured database. Re-run with --live only if you mean it.')
+
 from app import app, db
 from models.user import User
 import uuid
