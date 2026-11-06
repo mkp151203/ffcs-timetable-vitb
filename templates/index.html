@@ -221,6 +221,28 @@
 <!-- Feedback Modal -->
 {% include "components/feedback_modal.html" %}
 
+<!-- Guest Low Rating Modal (triggered after 1-2 star rating by a guest) -->
+<div id="guestLowRatingModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-comment-alt"></i> Sorry about that</h2>
+            <button class="modal-close" onclick="closeGuestLowRatingModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+            <p style="font-size: 1rem; color: var(--text-muted); margin-bottom: 20px;">
+                Sorry the app didn't work well for you. You can contact the developer by logging in
+                and raise your concerns so they can be fixed.
+            </p>
+            <a href="/auth/login" class="btn btn-primary" style="width: 100%; justify-content: center; margin-bottom: 10px;">
+                <i class="fas fa-sign-in-alt"></i> Log in to Contact Developer
+            </a>
+            <button class="btn btn-secondary" onclick="closeGuestLowRatingModal()" style="width: 100%; justify-content: center;">
+                Maybe Later
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Share App Modal (triggered after 3+ star rating) -->
 <div id="shareAppModal" class="modal">
     <div class="modal-content" style="max-width: 440px;">

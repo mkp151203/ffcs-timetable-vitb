@@ -4010,13 +4010,17 @@ async function submitFeedback() {
     function openLowRatingFeedback() {
         if (window.IS_LOGGED_IN) {
             openFeedbackModal("Sorry the app didn't work well for you. Please write your concerns to the developer so they can be fixed.");
-        } else if (confirm("Sorry the app didn't work well for you. Log in to write your concerns to the developer?")) {
-            window.location.href = '/auth/login';
+        } else {
+            document.getElementById('guestLowRatingModal').classList.add('active');
         }
     }
 
     document.addEventListener('DOMContentLoaded', initStarRating);
 })();
+
+function closeGuestLowRatingModal() {
+    document.getElementById('guestLowRatingModal').classList.remove('active');
+}
 
 // ==================== Share Modal ====================
 
