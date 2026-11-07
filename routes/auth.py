@@ -55,6 +55,7 @@ def login():
 def logout():
     session.pop('user_id', None)
     session.pop('guest_id', None) # Clear guest session too on explicit logout
+    session.pop('ga_internal', None)
     return redirect(url_for('main.index'))
 
 @auth_bp.route('/callback')
@@ -77,6 +78,7 @@ def callback():
         # Check if user exists
         user = User.query.filter_by(google_id=user_info['sub']).first()
         
+        is_new_user = not user
         if not user:
             # Create new user
             user = User(
@@ -103,6 +105,8 @@ def callback():
 
         # Set session
         session['user_id'] = user.id
+        session['ga_event'] = 'sign_up' if is_new_user else 'login'   # sent once by the next page
+        session['ga_internal'] = user.email in current_app.config.get('ADMIN_EMAILS', [])
         # Clear guest_id to stop showing guest data
         session.pop('guest_id', None) 
         

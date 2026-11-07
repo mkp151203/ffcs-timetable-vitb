@@ -374,10 +374,12 @@ async function createNewRegistration(slotId) {
     const data = await response.json();
 
     if (response.ok) {
+        track('course_register', { method: 'new' });
         closeFacultyModal();
         // Refresh timetable grid without full page reload
         await refreshTimetableGrid();
     } else {
+        track(data.clashing_slots ? 'clash_blocked' : 'register_error', { method: 'new' });
         alert(data.error || 'Registration failed.');
         throw new Error(data.error || 'Registration failed.'); // Propagate error
     }
@@ -394,10 +396,12 @@ async function updateRegistration(slotId, regId) {
     const data = await response.json();
 
     if (response.ok) {
+        track('course_register', { method: 'change' });
         closeFacultyModal();
         // Refresh timetable grid without full page reload
         await refreshTimetableGrid();
     } else {
+        track(data.clashing_slots ? 'clash_blocked' : 'register_error', { method: 'change' });
         alert(data.error || 'Update failed');
         throw new Error(data.error || 'Update failed');
     }
@@ -492,6 +496,7 @@ async function deleteRegistration(regId, btn = null) {
         });
 
         if (response.ok) {
+            track('course_unregister', { count: 1 });
             await refreshTimetableGrid();
         } else {
             alert('Error removing course.');
@@ -648,6 +653,7 @@ async function bulkDeleteRegistrations() {
         const data = await response.json();
 
         if (response.ok) {
+            track('course_unregister', { count: selectedIds.length });
             await refreshTimetableGrid();
         } else {
             alert('Error: ' + (data.error || 'Failed to delete registrations'));
@@ -911,7 +917,7 @@ async function deleteSelectedCourses() {
         const data = await response.json();
 
         if (response.ok) {
-            // Success
+            track('courses_delete', { count: count });
             alert(data.message);
             closeAllCoursesModal();
             // Clear any stale search results
@@ -957,6 +963,7 @@ async function clearAllRegistrations() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ registration_ids: regIds })
             });
+            track('timetable_clear', { count: regIds.length });
         }
 
         await refreshTimetableGrid();
@@ -1074,6 +1081,12 @@ async function importHtmlFiles() {
         const data = await response.json();
 
         if (response.ok && data.success) {
+            track('data_import', {
+                method: 'vtop_html',
+                file_count: data.results.length,
+                success_count: data.success_count,
+                slots_added: data.results.reduce((sum, r) => sum + (r.slots_added || 0), 0)
+            });
             // Render results
             const resultItems = data.results.map(res => {
                 if (res.status === 'success') {
@@ -1105,12 +1118,14 @@ async function importHtmlFiles() {
             }
 
         } else {
+            track('import_error', { method: 'vtop_html', reason: 'rejected' });
             statusDiv.innerHTML = `<div class="import-error-item">Error: ${esc(data.error || 'Upload failed')}</div>`;
             importBtn.disabled = false;
         }
 
     } catch (error) {
         console.error('Import error:', error);
+        track('import_error', { method: 'vtop_html', reason: 'network' });
         statusDiv.innerHTML = `<div class="import-error-item">Error importing files.</div>`;
         importBtn.disabled = false;
     }
@@ -1243,6 +1258,7 @@ async function submitManualEntry(event) {
         const data = await response.json();
 
         if (response.ok) {
+            track('data_import', { method: 'manual_entry', success_count: 1 });
             alert(`Success! ${data.message}`);
             closeManualEntryModal();
             await refreshTimetableGrid();
@@ -1264,6 +1280,7 @@ async function submitManualEntry(event) {
 // ==================== Import Help ====================
 
 function showImportHelp() {
+    track('help_open', { content_type: 'import_help' });
     document.getElementById('importHelpModal').classList.add('active');
 }
 
@@ -1361,6 +1378,7 @@ async function downloadTimetablePDF() {
 
         pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
         pdf.save('My_Timetable.pdf');
+        track('pdf_download');
 
     } catch (err) {
         console.error('PDF Generation Error:', err);
@@ -1792,6 +1810,12 @@ async function generateTimetable() {
 
         generateSuggestions = data.suggestions;
         generateCurrentOffset = generateSuggestions.length;
+        track('generate_timetable', {
+            course_count: generateSelectedCourseIds.length,
+            time_mode: selectedMode,
+            result_count: generateSuggestions.length,
+            faculty_preferences: Object.keys(prefs).length
+        });
 
         if (generateSuggestions.length === 0) {
             statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> No valid combinations found. Try removing some courses.';
@@ -1871,6 +1895,7 @@ async function countTimetables() {
 
         if (response.ok) {
             const count = data.count;
+            track('timetable_count', { course_count: generateSelectedCourseIds.length, result_count: count });
             const capped = data.capped;
 
             if (count === 0) {
@@ -2256,7 +2281,8 @@ async function applySuggestion(index) {
         if (response.ok) {
             alert(`Success! Registered ${data.registration_count} courses.`);
             // Redirect to main page (works for both modal and page)
-            window.location.href = '/';
+            trackThen('timetable_apply', { source: 'generated', course_count: data.registration_count },
+                () => { window.location.href = '/'; });
         } else {
             alert('Error: ' + data.error);
         }
@@ -2356,6 +2382,7 @@ function saveSuggestion(index) {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
+                track('timetable_save', { source: 'generated', course_count: suggestion.slots.length });
                 alert('Timetable configuration saved successfully!');
             } else {
                 alert('Error saving timetable: ' + data.error);
@@ -2595,7 +2622,8 @@ function applySavedTimetable(slotIds) {
         .then(data => {
             if (data.success) {
                 alert('Timetable applied successfully!');
-                window.location.href = '/'; // Go to home to see it
+                trackThen('timetable_apply', { source: 'saved', course_count: slots.length },
+                    () => { window.location.href = '/'; }); // Go to home to see it
             } else {
                 alert('Error applying timetable: ' + data.error);
             }
@@ -3021,6 +3049,7 @@ async function submitManualImportData() {
             const result = data.results[0];
 
             if (result.status === 'success') {
+                track('data_import', { method: 'manual_table', success_count: 1, slots_added: result.slots_added });
                 statusDiv.innerHTML = `
                     <div class="import-success">
                         <i class="fas fa-check-circle"></i>
@@ -3038,15 +3067,18 @@ async function submitManualImportData() {
                     alert(`Course imported successfully! ${result.course_code} - ${result.slots_added} faculty/slot options added.`);
                 }, 1500);
             } else {
+                track('import_error', { method: 'manual_table', reason: 'rejected' });
                 statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(result.message)}</div>`;
                 importBtn.disabled = false;
             }
         } else {
+            track('import_error', { method: 'manual_table', reason: 'rejected' });
             statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             importBtn.disabled = false;
         }
     } catch (error) {
         console.error('Import error:', error);
+        track('import_error', { method: 'manual_table', reason: 'network' });
         statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-times"></i> Error importing data.</div>';
         importBtn.disabled = false;
     }
@@ -3293,6 +3325,7 @@ async function saveModifiedCourse() {
         const data = await response.json();
 
         if (response.ok) {
+            track('course_edit', { slot_count: slots.length });
             statusDiv.innerHTML = `<div class="import-success"><i class="fas fa-check"></i> ${esc(data.message)}</div>`;
             setTimeout(async () => {
                 closeModifyCourseModal();
@@ -3388,6 +3421,7 @@ function ocrPrevStep(step) {
 // Copy AI prompt to clipboard
 // Copy AI prompt to clipboard
 function copyAiPrompt() {
+    track('help_open', { content_type: 'ai_prompt_copy' });
     const promptText = document.getElementById('aiPromptText').textContent;
     const btn = event.target.closest('button');
 
@@ -3476,6 +3510,7 @@ function parseAiOutput() {
     }
 
     if (rows.length === 0) {
+        track('import_error', { method: 'ai_ocr', reason: 'unparsed' });
         statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-exclamation-circle"></i> Could not parse any valid rows. Make sure the AI output is in CSV format.</div>';
         return;
     }
@@ -3628,6 +3663,7 @@ async function importOcrData() {
             const result = data.results[0];
 
             if (result.status === 'success') {
+                track('data_import', { method: 'ai_ocr', success_count: 1, slots_added: result.slots_added });
                 statusDiv.innerHTML = `
                     <div class="import-success">
                         <i class="fas fa-check-circle"></i>
@@ -3645,16 +3681,19 @@ async function importOcrData() {
                     alert(`Course imported successfully! ${result.course_code} - ${result.slots_added} faculty/slot options added.`);
                 }, 1500);
             } else {
+                track('import_error', { method: 'ai_ocr', reason: 'rejected' });
                 statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(result.message)}</div>`;
                 importBtn.disabled = false;
             }
         } else {
+            track('import_error', { method: 'ai_ocr', reason: 'rejected' });
             statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             importBtn.disabled = false;
         }
 
     } catch (error) {
         console.error('Import error:', error);
+        track('import_error', { method: 'ai_ocr', reason: 'network' });
         statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-times"></i> Error importing data.</div>';
         importBtn.disabled = false;
     }
@@ -3704,6 +3743,7 @@ async function saveCurrentTimetable() {
 
         const data = await saveResp.json();
         if (saveResp.ok) {
+            track('timetable_save', { source: 'current', course_count: count });
             alert('Timetable saved successfully!');
         } else {
             alert(data.message || 'Error saving timetable');
@@ -3853,6 +3893,7 @@ async function importCsvFile() {
         const data = await response.json();
 
         if (response.ok && data.success) {
+            track('data_import', { method: 'csv', file_count: data.results.length, success_count: data.success_count });
             let successMsg = `<div class="import-success"><i class="fas fa-check-circle"></i> ${esc(data.summary)}</div>`;
 
             if (data.results && data.results.length > 0) {
@@ -3879,12 +3920,14 @@ async function importCsvFile() {
             }
 
         } else {
+            track('import_error', { method: 'csv', reason: 'rejected' });
             if (statusDiv) statusDiv.innerHTML = `<div class="import-error-item"><i class="fas fa-times"></i> ${esc(data.error || 'Import failed')}</div>`;
             if (importBtn) importBtn.disabled = false;
         }
 
     } catch (error) {
         console.error('Import error:', error);
+        track('import_error', { method: 'csv', reason: 'network' });
         if (statusDiv) statusDiv.innerHTML = '<div class="import-error-item"><i class="fas fa-times"></i> Error uploading files.</div>';
         if (importBtn) importBtn.disabled = false;
     }
@@ -3947,6 +3990,7 @@ async function submitFeedback() {
         const data = await response.json();
 
         if (response.ok) {
+            track('feedback_submit');
             statusDiv.innerHTML = `<div class="alert alert-success">${esc(data.message)}</div>`;
             setTimeout(() => {
                 closeFeedbackModal();
@@ -4043,6 +4087,7 @@ async function submitFeedback() {
             const data = await resp.json();
 
             if (resp.ok) {
+                track('rating_submit', { rating: starCount, updated: data.updated ? 'yes' : 'no' });
                 thanksText.textContent = data.updated ? 'Rating updated!' : 'Thanks for your rating!';
                 thanksEl.style.display = 'block';
                 setTimeout(() => {
@@ -4070,6 +4115,7 @@ async function submitFeedback() {
         try {
             const resp = await fetch('/api/rating/remove', { method: 'POST' });
             if (resp.ok) {
+                track('rating_remove');
                 thanksText.textContent = 'Rating removed';
                 thanksEl.style.display = 'block';
                 setTimeout(() => {
@@ -4112,6 +4158,7 @@ function closeShareModal() {
 }
 
 function shareVia(platform) {
+    track('share', { method: platform, content_type: 'app' });
     const url = window.location.origin;
     const text = 'Check out this awesome FFCS Timetable Maker for VIT Bhopal! Build your perfect timetable easily';
     const encoded = encodeURIComponent(text + '\n' + url);

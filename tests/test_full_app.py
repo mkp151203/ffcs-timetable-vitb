@@ -293,6 +293,22 @@ class TestCoreFeatures(AppTestCase):
 
 class TestSecurity(AppTestCase):
 
+    def test_analytics_never_sees_identity(self):
+        user = make_user('a.23bai10099@vitbhopal.ac.in', name='Asha Verma')
+        student = Browser(user).get('/').get_data(as_text=True)
+        match = re.search(r"gaConfig.user_id = '([0-9a-f]{32})'", student)
+        self.assertTrue(match)
+        self.assertIn("user_type: 'student'", student)
+        self.assertNotIn(f"user_id = '{user.id}'", student)
+        ga_script = student.split('<!-- Google tag (gtag.js) -->')[1].split('<!-- SEO Meta Tags -->')[0]
+        self.assertNotIn('Asha', ga_script)
+        self.assertNotIn('a.23bai10099', ga_script)
+        # Stable for the same student, absent for guests
+        self.assertIn(match.group(1), Browser(user).get('/').get_data(as_text=True))
+        guest = Browser().get('/').get_data(as_text=True)
+        self.assertNotIn('gaConfig.user_id', guest)
+        self.assertIn("user_type: 'guest'", guest)
+
     def test_security_headers(self):
         resp = app.test_client().get('/')
         h = resp.headers

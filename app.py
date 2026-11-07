@@ -58,6 +58,17 @@ app.before_request(csrf_protect)
 def inject_csrf_token():
     return {'csrf_token': get_csrf_token}
 
+
+@app.context_processor
+def inject_analytics_user_id():
+    """A stable, anonymous Google Analytics user ID for logged-in students (never the email or account number)."""
+    from flask import session
+    user_id = session.get('user_id')
+    if not user_id or session.get('is_impersonating'):
+        return {'ga_user_id': None}
+    digest = hmac.new(app.config['SECRET_KEY'].encode(), f'ga-user:{user_id}'.encode(), 'sha256').hexdigest()
+    return {'ga_user_id': digest[:32]}
+
 @app.errorhandler(413)
 def request_too_large(e):
     return jsonify({'error': 'Upload is too large. Each upload can be at most 8 MB.'}), 413

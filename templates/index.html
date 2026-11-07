@@ -272,7 +272,7 @@
 
 <!-- About and FAQ (collapsed by default; still in the HTML for search engines and AI assistants) -->
 <details class="about-section">
-    <summary class="about-toggle"><i class="fas fa-circle-question"></i> About this tool &amp; FAQ</summary>
+    <summary class="about-toggle" onclick="if (!this.parentElement.open) track('help_open', { content_type: 'about' })"><i class="fas fa-circle-question"></i> About this tool &amp; FAQ</summary>
     <h2>About the VIT Bhopal FFCS Timetable Maker</h2>
     <p>
         The VIT Bhopal FFCS Timetable Maker is a free planner for the Fully Flexible Credit System (FFCS) at
@@ -291,7 +291,7 @@
     <h3>Frequently asked questions</h3>
     <div class="faq-list">
         {% for question, answer in faqs %}
-        <details class="faq-item">
+        <details class="faq-item" ontoggle="if (this.open) track('help_open', { content_type: 'faq', faq_index: {{ loop.index }} })">
             <summary>{{ question }}</summary>
             <p>{{ answer }}</p>
         </details>
@@ -1067,20 +1067,6 @@ A14+D11+D12,AB02-428,ABDUL,61"></textarea>
     </div>
 
     <script>
-        function openVideoModal() {
-            console.log("Attempting to open video modal...");
-            const modal = document.getElementById('videoModal');
-            const iframe = document.getElementById('videoFrame');
-            if (modal && iframe) {
-                iframe.src = "https://www.youtube.com/embed/Ymc5Ap_97ro?autoplay=1&modestbranding=1&rel=0";
-                modal.classList.add('active');
-                modal.style.display = 'flex'; // Enforce flex display
-                console.log("Modal opened.");
-            } else {
-                console.error("Video modal elements not found!");
-            }
-        }
-
         function closeVideoModal() {
             const modal = document.getElementById('videoModal');
             const iframe = document.getElementById('videoFrame');
@@ -1120,7 +1106,7 @@ A14+D11+D12,AB02-428,ABDUL,61"></textarea>
         });
 
         function openVideoModal() {
-            console.log("Attempting to open video modal...");
+            track('help_open', { content_type: 'video' });
             const modal = document.getElementById('videoModal');
             const iframe = document.getElementById('videoFrame');
             if (modal && iframe) {

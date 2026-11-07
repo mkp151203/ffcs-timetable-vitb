@@ -16,7 +16,29 @@
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
 
-        gtag('config', 'G-F03ZLSX9P7');
+        // Local development, admins and "view as" sessions are tagged internal so a GA data filter can drop them
+        var gaInternal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
+            {{ 'true' if (session.get('ga_internal') or session.get('is_impersonating')) else 'false' }};
+        gtag('set', 'user_properties', { user_type: '{{ 'student' if session.get('user_id') else 'guest' }}' });
+        var gaConfig = gaInternal ? { traffic_type: 'internal', debug_mode: true } : {};
+        {% if ga_user_id %}gaConfig.user_id = '{{ ga_user_id }}';{% endif %}
+        gtag('config', 'G-F03ZLSX9P7', gaConfig);
+        {% set ga_event = session.pop('ga_event', None) %}
+        {% if ga_event in ('login', 'sign_up') %}gtag('event', '{{ ga_event }}', { method: 'Google' });{% endif %}
+
+        // Count a user action in Google Analytics. Never pass names, emails or other personal data.
+        function track(name, params) {
+            try { gtag('event', name, params || {}); } catch (e) { /* analytics must never break the app */ }
+        }
+
+        // Track, then run `next` once the hit is sent (or after 800 ms, e.g. when an ad blocker stops it).
+        // Use before navigating away so the event isn't lost.
+        function trackThen(name, params, next) {
+            var done = false;
+            var go = function () { if (!done) { done = true; next(); } };
+            try { gtag('event', name, Object.assign({}, params, { event_callback: go, event_timeout: 800 })); } catch (e) { }
+            setTimeout(go, 800);
+        }
     </script>
 
     {% set site_url = config.SITE_URL %}

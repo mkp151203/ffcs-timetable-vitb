@@ -12,6 +12,12 @@
     let requestId = 0;      // Only the newest search or page is drawn
     let openCourse = null;  // The course shown in the course view
     let selectedId = null;  // Its expanded version (null: all collapsed)
+    let searchTrackTimer = null;  // Analytics counts a search once typing stops
+
+    // Analytics is optional: `track` comes from base.html
+    function report(name, params) {
+        if (typeof track === 'function') track(name, params);
+    }
 
     const $ = id => document.getElementById(id);
 
@@ -184,6 +190,12 @@
             const data = await fetchSearch(query);
             if (id !== requestId) return; // A newer search or page is on its way
             renderResults(data);
+            clearTimeout(searchTrackTimer);
+            searchTrackTimer = setTimeout(() => report('search', {
+                search_term: query.toUpperCase().slice(0, 60),
+                search_type: 'shared_library',
+                result_count: (data.courses || []).length
+            }), 1500);
         } catch (e) {
             if (id === requestId) setStatus(e.message || 'Search failed. Check your connection.', true);
         }
@@ -207,6 +219,9 @@
     }
 
     function showCourse(course, keepVersionId) {
+        if (!keepVersionId) {
+            report('shared_course_view', { course_code: course.code, version_count: (course.versions || []).length });
+        }
         openCourse = course;
         const versions = course.versions || [];
         // Rows start collapsed (a single version opens straight away); after verifying, the same one stays open
@@ -403,6 +418,11 @@
                 return;
             }
             setStatus('');
+            report('shared_import', {
+                course_code: version.code,
+                version_rank: openCourse ? openCourse.versions.findIndex(v => v.id === version.id) + 1 : 0,
+                slots_added: data.slots_added
+            });
             showImportNotice(version, data, button.closest('.shared-version-detail'));
             if (typeof refreshTimetableGrid === 'function') await refreshTimetableGrid();
         } catch (e) {
@@ -422,6 +442,7 @@
                 button.disabled = false;
                 return;
             }
+            report('shared_verify', { course_code: version.code, action: data.viewer_verified ? 'add' : 'remove' });
             // Redraw with fresh counts (the order may change), keeping this version selected
             const fresh = (await fetchSearch(openCourse.code)).courses.find(c => c.code === openCourse.code);
             if (fresh) showCourse(fresh, version.id);
@@ -438,6 +459,7 @@
         const modal = $('sharedLibraryModal');
         if (!modal) return;
         modal.classList.add('active');
+        report('shared_library_open');
         showList();
         const input = $('sharedSearchInput');
         input.focus();
